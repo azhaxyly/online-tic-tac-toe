@@ -2,6 +2,9 @@ package config
 
 import (
 	"os"
+	"tictactoe/internal/logger"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -12,17 +15,22 @@ type Config struct {
 }
 
 func Load() *Config {
+	if err := godotenv.Load(); err != nil {
+		logger.Warn(".env file not found or failed to load (fallback to OS env)")
+	}
+
 	return &Config{
-		ServerPort:  getEnv("SERVER_PORT", "8080"),
-		PostgresDSN: getEnv("POSTGRES_DSN", "postgres://user:pass@localhost:5432/tictactoe?sslmode=disable"),
-		RedisAddr:   getEnv("REDIS_ADDR", "localhost:6379"),
-		RedisPass:   getEnv("REDIS_PASS", ""),
+		ServerPort:  mustGet("SERVER_PORT"),
+		PostgresDSN: mustGet("POSTGRES_DSN"),
+		RedisAddr:   mustGet("REDIS_ADDR"),
+		RedisPass:   os.Getenv("REDIS_PASS"), // may be empty
 	}
 }
 
-func getEnv(key string, fallback string) string {
+func mustGet(key string) string {
 	if val, ok := os.LookupEnv(key); ok {
 		return val
 	}
-	return fallback
+	logger.Error("Missing required environment variable:", key)
+	panic("Missing env: " + key)
 }
