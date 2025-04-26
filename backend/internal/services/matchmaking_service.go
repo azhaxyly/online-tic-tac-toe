@@ -38,6 +38,13 @@ func (m *MatchmakingService) HandleFindMatch(nickname string) error {
 
 	logger.Info("Added to match queue:", nickname)
 
+	conn, ok := m.Clients[nickname]
+	if ok {
+		_ = conn.WriteJSON(map[string]interface{}{
+			"type": "searching",
+		})
+	}
+
 	players, err := m.RDB.SMembers(ctx, "match_queue").Result()
 	if err != nil {
 		return err

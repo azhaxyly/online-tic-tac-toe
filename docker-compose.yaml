@@ -37,13 +37,14 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./frontend_static
       dockerfile: Dockerfile
     container_name: ttt_frontend
     ports:
-      - "5173:5173"
+    - "8080:80"
     depends_on:
-      - backend
+    - backend
+
 
 volumes:
   postgres_data:
