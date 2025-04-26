@@ -1,6 +1,7 @@
 package http
 
 import (
+	"tictactoe/internal/api/http/handlers"
 	"tictactoe/internal/services"
 	wsManager "tictactoe/internal/ws"
 
@@ -20,15 +21,17 @@ func NewRouter(sessionService *services.SessionService) *gin.Engine {
 
 	manager := wsManager.NewManager(sessionService.RDB)
 
-	// WS route
+	statsHandler := handlers.NewStatsHandler(sessionService.RDB)
+	sessionHandler := handlers.NewSessionHandler(sessionService)
+
 	router.GET("/ws", func(c *gin.Context) {
 		manager.HandleConnection(c.Writer, c.Request)
 	})
 
-	// HTTP API
 	api := router.Group("/api")
 	{
-		api.GET("/nickname", NewSessionHandler(sessionService).GetNickname)
+		api.GET("/nickname", sessionHandler.GetNickname)
+		api.GET("/stats", statsHandler.GetStats)
 	}
 
 	return router
