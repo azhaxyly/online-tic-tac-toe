@@ -111,10 +111,23 @@ func (g *GameManager) FinishGame(rdb *redis.Client, nickname string) {
 		return
 	}
 
+	ctx := context.Background()
+
+	switch game.Winner {
+	case "X":
+		rdb.Incr(ctx, "wins:"+game.PlayerX)
+		rdb.Incr(ctx, "losses:"+game.PlayerO)
+	case "O":
+		rdb.Incr(ctx, "wins:"+game.PlayerO)
+		rdb.Incr(ctx, "losses:"+game.PlayerX)
+	case "draw":
+		rdb.Incr(ctx, "draws:"+game.PlayerX)
+		rdb.Incr(ctx, "draws:"+game.PlayerO)
+	}
+
 	delete(g.games, game.PlayerX)
 	delete(g.games, game.PlayerO)
 
-	ctx := context.Background()
 	count, err := rdb.Decr(ctx, "active_games").Result()
 	if err != nil {
 		logger.Warn("failed to decrement active_games:", err)
