@@ -12,7 +12,7 @@ export default function OnlineGamePage() {
     const [isGameStarted, setIsGameStarted] = useState(false);
 
     useEffect(() => {
-        const socket = new WebSocket(`ws://${location.host}/ws`);
+        const socket = new WebSocket(`ws://localhost:8080/ws`);
         setWs(socket);
 
         socket.onopen = () => {

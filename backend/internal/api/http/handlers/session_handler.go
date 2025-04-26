@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
+	"tictactoe/internal/logger"
 	"tictactoe/internal/services"
 	"tictactoe/internal/utils"
 
@@ -30,5 +32,6 @@ func (h *SessionHandler) GetNickname(c *gin.Context) {
 		return
 	}
 
+	logger.Info(fmt.Sprintf("User %s connected with session ID %s", user.Nickname, sessionID))
 	c.JSON(http.StatusOK, gin.H{"nickname": user.Nickname})
 }

@@ -13,19 +13,13 @@ func NewRouter(sessionService *services.SessionService) *gin.Engine {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:8080"}, // python3 -m http.server 5500
+		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST"},
 		AllowHeaders:     []string{"Content-Type"},
 		AllowCredentials: true,
 	}))
 
 	manager := ws.NewManager(sessionService.RDB)
-
-	router.Static("/static", "./public")
-
-	router.GET("/", func(c *gin.Context) {
-		c.File("./public/test_game_full.html")
-	})
 
 	statsHandler := handlers.NewStatsHandler(sessionService.RDB)
 	sessionHandler := handlers.NewSessionHandler(sessionService)

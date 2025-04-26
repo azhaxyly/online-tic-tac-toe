@@ -8,27 +8,36 @@ export default function MainPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Получить nickname
     fetch('/api/nickname', { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => setNickname(data.nickname))
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch nickname');
+        }
+        return res.json();
+      })
+      .then(data => {
+        setNickname(data.nickname);
+  
+        fetchStats();
+        const interval = setInterval(fetchStats, 60000);
+        return () => clearInterval(interval);
+      })
       .catch(() => setError('Failed to fetch nickname.'));
-
-    // Получить статистику сразу
-    fetchStats();
-
-    // Автообновление статистики раз в минуту
-    const interval = setInterval(fetchStats, 60000);
-
-    return () => clearInterval(interval);
   }, []);
+  
 
   function fetchStats() {
-    fetch('/api/stats')
-      .then(res => res.json())
+    fetch('/api/stats', { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch stats');
+        }
+        return res.json();
+      })
       .then(data => setStats(data))
       .catch(() => setError('Failed to fetch stats.'));
   }
+  
 
   function handleQuickGame() {
     navigate('/online');
@@ -55,6 +64,7 @@ export default function MainPage() {
         <button
           onClick={handleQuickGame}
           className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          disabled={!nickname}
         >
           Quick Game
         </button>
