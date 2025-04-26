@@ -16,7 +16,7 @@ type WSManager struct {
 	mu          sync.RWMutex
 	clients     map[string]*websocket.Conn
 	redis       *redis.Client
-	matchmaker  *services.MatchmakerService
+	matchmaker  *services.MatchmakingService
 	gameManager *services.GameManager
 }
 
@@ -116,6 +116,18 @@ func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				logger.Warn("Cancel match error:", err)
 				_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+			}
+		case "play_again":
+			msgSelf, msgOpponent, err := m.gameManager.HandlePlayAgain(nickname)
+			if err != nil {
+				logger.Warn("PlayAgain error:", err)
+				_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+				break
+			}
+
+			if msgSelf != nil && msgOpponent != nil {
+				m.sendToGame(nickname, msgSelf)
+				m.sendToGame(nickname, msgOpponent)
 			}
 		case "move":
 			cell, ok := intFrom(msg["cell"])

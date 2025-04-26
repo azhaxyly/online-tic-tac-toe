@@ -11,21 +11,21 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type MatchmakerService struct {
+type MatchmakingService struct {
 	RDB         *redis.Client
 	Clients     map[string]*websocket.Conn
 	GameManager *GameManager
 }
 
-func NewMatchmakerService(rdb *redis.Client, clients map[string]*websocket.Conn, gm *GameManager) *MatchmakerService {
-	return &MatchmakerService{
+func NewMatchmakerService(rdb *redis.Client, clients map[string]*websocket.Conn, gm *GameManager) *MatchmakingService {
+	return &MatchmakingService{
 		RDB:         rdb,
 		Clients:     clients,
 		GameManager: gm,
 	}
 }
 
-func (m *MatchmakerService) HandleFindMatch(nickname string) error {
+func (m *MatchmakingService) HandleFindMatch(nickname string) error {
 	ctx := context.Background()
 
 	added, err := m.RDB.SAdd(ctx, "match_queue", nickname).Result()
@@ -70,7 +70,7 @@ func (m *MatchmakerService) HandleFindMatch(nickname string) error {
 	return nil
 }
 
-func (m *MatchmakerService) HandleCancelMatch(nickname string) error {
+func (m *MatchmakingService) HandleCancelMatch(nickname string) error {
 	ctx := context.Background()
 
 	removed, err := m.RDB.SRem(ctx, "match_queue", nickname).Result()
@@ -94,7 +94,7 @@ func (m *MatchmakerService) HandleCancelMatch(nickname string) error {
 	return nil
 }
 
-func (m *MatchmakerService) HandleDisconnect(nickname string) {
+func (m *MatchmakingService) HandleDisconnect(nickname string) {
 	ctx := context.Background()
 
 	_, err := m.RDB.SRem(ctx, "match_queue", nickname).Result()
@@ -125,7 +125,7 @@ func (m *MatchmakerService) HandleDisconnect(nickname string) {
 	m.GameManager.FinishGame(m.RDB, nickname)
 }
 
-func (m *MatchmakerService) sendMatchFound(player, opponent, symbol string) {
+func (m *MatchmakingService) sendMatchFound(player, opponent, symbol string) {
 	conn, ok := m.Clients[player]
 	if !ok {
 		return

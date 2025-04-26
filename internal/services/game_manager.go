@@ -3,29 +3,23 @@ package services
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 	"tictactoe/internal/logger"
+	"tictactoe/internal/models"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-type Game struct {
-	PlayerX    string
-	PlayerO    string
-	Board      [9]string
-	Turn       string // "X" or "O"
-	IsFinished bool
-	Winner     string // "X", "O", "draw"
-}
-
 type GameManager struct {
 	mu    sync.RWMutex
-	games map[string]*Game
+	games map[string]*models.Game
 }
 
 func NewGameManager() *GameManager {
 	return &GameManager{
-		games: make(map[string]*Game),
+		games: make(map[string]*models.Game),
 	}
 }
 
@@ -40,7 +34,7 @@ func (g *GameManager) CreateGame(p1, p2, sym1, sym2 string) {
 		px, po = p2, p1
 	}
 
-	game := &Game{
+	game := &models.Game{
 		PlayerX:    px,
 		PlayerO:    po,
 		Turn:       "X",
@@ -101,7 +95,7 @@ func (g *GameManager) HandleMove(nickname string, cell int) (map[string]interfac
 	return move, nil, nil
 }
 
-func (g *GameManager) GetGame(nickname string) (*Game, bool) {
+func (g *GameManager) GetGame(nickname string) (*models.Game, bool) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	game, ok := g.games[nickname]
@@ -127,6 +121,62 @@ func (g *GameManager) FinishGame(rdb *redis.Client, nickname string) {
 	} else if count < 0 {
 		_ = rdb.Set(ctx, "active_games", 0, 0).Err()
 	}
+}
+
+func (g *GameManager) HandlePlayAgain(nickname string) (map[string]interface{}, map[string]interface{}, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	game, ok := g.games[nickname]
+	if !ok {
+		return nil, nil, fmt.Errorf("no active game")
+	}
+
+	if nickname == game.PlayerX {
+		game.PlayAgainX = true
+	} else if nickname == game.PlayerO {
+		game.PlayAgainO = true
+	} else {
+		return nil, nil, fmt.Errorf("not a player")
+	}
+
+	if !(game.PlayAgainX && game.PlayAgainO) {
+		return nil, nil, nil
+	}
+
+	players := []string{game.PlayerX, game.PlayerO}
+	symbols := []string{"X", "O"}
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r.Shuffle(2, func(i, j int) { symbols[i], symbols[j] = symbols[j], symbols[i] })
+
+	game.Board = [9]string{}
+	game.IsFinished = false
+	game.Turn = "X"
+	game.PlayAgainX = false
+	game.PlayAgainO = false
+	game.Winner = ""
+
+	if symbols[0] == "X" {
+		game.PlayerX = players[0]
+		game.PlayerO = players[1]
+	} else {
+		game.PlayerX = players[1]
+		game.PlayerO = players[0]
+	}
+
+	msg1 := map[string]interface{}{
+		"type":     "rematch",
+		"symbol":   "X",
+		"opponent": game.PlayerO,
+	}
+	msg2 := map[string]interface{}{
+		"type":     "rematch",
+		"symbol":   "O",
+		"opponent": game.PlayerX,
+	}
+
+	return msg1, msg2, nil
 }
 
 func opposite(s string) string {

@@ -2,8 +2,8 @@ package http
 
 import (
 	"tictactoe/internal/api/http/handlers"
+	"tictactoe/internal/api/ws"
 	"tictactoe/internal/services"
-	wsManager "tictactoe/internal/ws"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -19,7 +19,7 @@ func NewRouter(sessionService *services.SessionService) *gin.Engine {
 		AllowCredentials: true,
 	}))
 
-	manager := wsManager.NewManager(sessionService.RDB)
+	manager := ws.NewManager(sessionService.RDB)
 
 	statsHandler := handlers.NewStatsHandler(sessionService.RDB)
 	sessionHandler := handlers.NewSessionHandler(sessionService)
