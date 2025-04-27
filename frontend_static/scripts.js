@@ -43,11 +43,14 @@ function renderBoard() {
 
       cellDiv.addEventListener('mouseenter', () => {
         if (!board[idx] && !cellDiv.querySelector('.preview')) {
-          const previewSpan = document.createElement('span');
-          previewSpan.classList.add('preview', getCurrentTurn() === 'X' ? 'x' : 'o');
-          cellDiv.appendChild(previewSpan);
+          if (gameMode === 'offline' || (gameMode === 'online' && mySymbol === getCurrentTurn())) {
+            const previewSpan = document.createElement('span');
+            previewSpan.classList.add('preview', getCurrentTurn() === 'X' ? 'x' : 'o');
+            cellDiv.appendChild(previewSpan);
+          }
         }
       });
+      
 
       cellDiv.addEventListener('mouseleave', () => {
         const preview = cellDiv.querySelector('.preview');
