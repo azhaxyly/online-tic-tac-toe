@@ -171,18 +171,24 @@ button:hover {
 
 .game-area {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  gap: 30px;
+  gap: 60px;
   margin-top: 30px;
 }
 
 .restart-menu {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 140px;
-  align-items: stretch;
+  align-items: center;
+  gap: 20px;
+}
+
+.restart-menu button {
+  width: 180px;
+  padding: 16px 0;
+  font-size: 1.3rem;
+  border-radius: 14px;
 }
 
 @keyframes winnerPulse {
@@ -196,20 +202,20 @@ button:hover {
   }
 }
 
-.restart-menu {
-  margin-top: 20px;
-}
-
 .hidden {
   display: none;
 }
-
 
 .cell span {
   position: relative;
   display: block;
   width: 60%;
   height: 60%;
+}
+
+.cell span.preview {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .cell span.x::before,
@@ -231,7 +237,6 @@ button:hover {
   transform: translate(-50%, -50%) rotate(-45deg);
   animation-delay: 0.2s;
 }
-
 
 @keyframes drawX {
   0% {
@@ -345,3 +350,17 @@ button:hover {
   opacity: 0;
   transition: opacity 0.5s ease;
 }
+
+.highlight {
+  animation: blink 0.5s infinite alternate;
+}
+
+.dim {
+  opacity: 0.3;
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+

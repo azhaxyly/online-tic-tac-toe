@@ -81,13 +81,15 @@ func (g *GameManager) HandleMove(nickname string, cell int) (map[string]interfac
 		"by":   symbol,
 	}
 
-	if winner := checkWin(game.Board); winner != "" {
+	winner, winningPattern := checkWin(game.Board)
+	if winner != "" {
 		game.IsFinished = true
 		game.Winner = winner
 
 		result := map[string]interface{}{
-			"type":   "game_over",
-			"result": winner,
+			"type":           "game_over",
+			"result":         winner,
+			"winningPattern": winningPattern,
 		}
 
 		return move, result, nil
@@ -200,22 +202,19 @@ func opposite(s string) string {
 	return "X"
 }
 
-func checkWin(board [9]string) string {
-	lines := [][3]int{
+func checkWin(board [9]string) (string, []int) {
+	winPatterns := [][]int{
 		{0, 1, 2}, {3, 4, 5}, {6, 7, 8},
 		{0, 3, 6}, {1, 4, 7}, {2, 5, 8},
 		{0, 4, 8}, {2, 4, 6},
 	}
-	for _, l := range lines {
-		a, b, c := l[0], l[1], l[2]
+
+	for _, pattern := range winPatterns {
+		a, b, c := pattern[0], pattern[1], pattern[2]
 		if board[a] != "" && board[a] == board[b] && board[b] == board[c] {
-			return board[a]
+			return board[a], pattern
 		}
 	}
-	for _, cell := range board {
-		if cell == "" {
-			return ""
-		}
-	}
-	return "draw"
+
+	return "", nil
 }

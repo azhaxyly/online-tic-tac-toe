@@ -4,6 +4,8 @@ let gameMode = null;
 let ws = null;
 let mySymbol = '';
 let opponentSymbol = '';
+let winningSymbol = null;
+
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('TicTacToe loaded');
@@ -36,7 +38,22 @@ function renderBoard() {
       const cellDiv = document.createElement('div');
       cellDiv.classList.add('cell');
       cellDiv.dataset.index = idx;
+
       cellDiv.addEventListener('click', () => handleCellClick(idx));
+
+      cellDiv.addEventListener('mouseenter', () => {
+        if (!board[idx] && !cellDiv.querySelector('.preview')) {
+          const previewSpan = document.createElement('span');
+          previewSpan.classList.add('preview', getCurrentTurn() === 'X' ? 'x' : 'o');
+          cellDiv.appendChild(previewSpan);
+        }
+      });
+
+      cellDiv.addEventListener('mouseleave', () => {
+        const preview = cellDiv.querySelector('.preview');
+        if (preview) preview.remove();
+      });
+
       boardDiv.appendChild(cellDiv);
     }
 
@@ -59,7 +76,10 @@ function renderBoard() {
   board.forEach((cell, idx) => {
     const cellDiv = cells[idx];
 
-    if (cell && cellDiv.children.length === 0) {
+    const preview = cellDiv.querySelector('.preview');
+    if (preview) preview.remove();
+
+    if (cell && !cellDiv.querySelector('span:not(.preview)')) {
       const markSpan = document.createElement('span');
       markSpan.classList.add(cell === 'X' ? 'x' : 'o');
       cellDiv.appendChild(markSpan);
@@ -69,7 +89,6 @@ function renderBoard() {
     }
   });
 }
-
 
 async function startQuickGame() {
   console.log('Starting Quick Game...');
@@ -128,7 +147,14 @@ async function startQuickGame() {
       case 'game_over':
         updateStatus(msg.result === 'draw' ? "Draw!" : `${msg.result} wins!`);
         endGame();
+        setTimeout(() => {
+          if (msg.result !== 'draw' && msg.winningPattern) {
+            highlightWinningCells(msg.winningPattern);
+          }
+        }, 200);
         break;
+
+
 
       case 'opponent_left':
         updateStatus("Opponent disconnected!");
@@ -149,7 +175,6 @@ async function startQuickGame() {
     }
   };
 }
-
 
 function startOfflineGame() {
   console.log('Starting Offline Game...');
@@ -176,7 +201,10 @@ function handleCellClick(idx) {
     board[idx] = currentPlayer;
     renderBoard();
 
-    if (checkWin(currentPlayer)) {
+    const winningPattern = checkWin(currentPlayer);
+
+    if (winningPattern) {
+      highlightWinningCells(winningPattern);
       updateStatus(`${currentPlayer} wins!`);
       endGame();
     } else if (board.every(cell => cell)) {
@@ -208,9 +236,32 @@ function checkWin(symbol) {
     [0, 3, 6], [1, 4, 7], [2, 5, 8],
     [0, 4, 8], [2, 4, 6]
   ];
-  return winPatterns.some(pattern =>
-    pattern.every(idx => board[idx] === symbol)
-  );
+  for (const pattern of winPatterns) {
+    if (pattern.every(idx => board[idx] === symbol)) {
+      return pattern;
+    }
+  }
+  return null;
+}
+
+function highlightWinningCells(winningPattern) {
+  const cells = document.querySelectorAll('.cell');
+
+  winningPattern.forEach(idx => {
+    cells[idx].classList.add('highlight');
+  });
+
+  cells.forEach((cell, idx) => {
+    if (!winningPattern.includes(idx)) {
+      cell.classList.add('dim');
+    }
+  });
+
+  setTimeout(() => {
+    cells.forEach(cell => {
+      cell.classList.remove('highlight', 'dim');
+    });
+  }, 3000);
 }
 
 function updateStatus(text) {
@@ -222,7 +273,25 @@ function endGame() {
 }
 
 function playAgain() {
-  window.location.reload();
+  if (gameMode === 'offline') {
+    board = Array(9).fill('');
+    currentPlayer = 'X';
+    mySymbol = 'X';
+    opponentSymbol = 'O';
+
+    const boardDiv = document.getElementById('game-board');
+    const cells = boardDiv.querySelectorAll('.cell');
+    cells.forEach(cell => {
+      cell.innerHTML = '';
+      cell.classList.remove('show');
+    });
+
+    document.getElementById('restart-menu').classList.add('hidden');
+    updateStatus('Offline Game started. You are X.');
+    renderBoard();
+  } else {
+    window.location.reload();
+  }
 }
 
 function backToMain() {
@@ -260,14 +329,8 @@ function showStartScreen() {
     screen.classList.add('hidden');
     text.classList.add('hidden');
     board.classList.remove('hidden');
-    
+
     renderBoard();
     updateStatus('Offline Game started. You are X.');
   }, 4300);
 }
-
-
-
-
-
-
