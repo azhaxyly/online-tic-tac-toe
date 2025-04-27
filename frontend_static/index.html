@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Tic-Tac-Toe</title>
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
 
   <header>
@@ -17,20 +19,24 @@
       <button id="quick-game-btn">Quick Game</button>
       <button id="offline-game-btn">Offline Game</button>
     </div>
-  
+    <div id="game-start-screen" class="start-screen hidden">
+      <div class="start-half left"></div>
+      <div class="start-half right"></div>
+      <div id="game-start-text" class="start-text hidden">GET READY</div>
+    </div>
     <div class="game-area">
       <div id="game-board" class="board hidden"></div>
-    
       <div id="restart-menu" class="restart-menu hidden">
         <button id="play-again-btn">Play Again</button>
         <button id="back-to-main-btn">Back to Main</button>
       </div>
-    </div>    
-  
+    </div>
+
     <div id="game-status" class="game-status"></div>
   </main>
 
   <script src="scripts.js" defer></script>
 
 </body>
+
 </html>

@@ -71,30 +71,34 @@ function renderBoard() {
 }
 
 
-  async function startQuickGame() {
-    console.log('Starting Quick Game...');
-    gameMode = 'online';
+async function startQuickGame() {
+  console.log('Starting Quick Game...');
+  gameMode = 'online';
 
-    document.getElementById('game-board').classList.remove('hidden');
-  
-    try {
-      const res = await fetch('/api/nickname', { credentials: 'include' });
-      if (!res.ok) {
-        throw new Error('Failed to fetch nickname');
-      }
-      const data = await res.json();
-      console.log('Nickname confirmed:', data.nickname);
-    } catch (err) {
-      console.error('Cannot start game without nickname/session.', err);
-      return;
+  document.querySelector('header').classList.add('hidden');
+  document.getElementById('nickname').classList.add('hidden');
+  document.getElementById('stats').classList.add('hidden');
+  document.getElementById('menu').classList.add('hidden');
+
+  updateStatus('Searching for opponent...');
+
+  try {
+    const res = await fetch('/api/nickname', { credentials: 'include' });
+    if (!res.ok) {
+      throw new Error('Failed to fetch nickname');
     }
-  
-    ws = new WebSocket(`ws://${location.host}/ws`);
-  
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'find_match' }));
-      updateStatus('Searching for opponent...');
-    };
+    const data = await res.json();
+    console.log('Nickname confirmed:', data.nickname);
+  } catch (err) {
+    console.error('Cannot start game without nickname/session.', err);
+    return;
+  }
+
+  ws = new WebSocket(`ws://${location.host}/ws`);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'find_match' }));
+  };
 
   ws.onmessage = (event) => {
     const msg = JSON.parse(event.data);
@@ -104,9 +108,15 @@ function renderBoard() {
       case 'match_found':
         mySymbol = msg.symbol;
         opponentSymbol = mySymbol === 'X' ? 'O' : 'X';
-        updateStatus(`Matched! You are '${mySymbol}'`);
-        board = Array(9).fill('');
-        renderBoard();
+
+        showStartScreen();
+
+        setTimeout(() => {
+          document.getElementById('game-board').classList.remove('hidden');
+          board = Array(9).fill('');
+          renderBoard();
+          updateStatus(`Matched! You are '${mySymbol}'`);
+        }, 4300);
         break;
 
       case 'move_made':
@@ -140,18 +150,22 @@ function renderBoard() {
   };
 }
 
+
 function startOfflineGame() {
   console.log('Starting Offline Game...');
   gameMode = 'offline';
-  
+
+  document.querySelector('header').classList.add('hidden');
+  document.getElementById('nickname').classList.add('hidden');
+  document.getElementById('stats').classList.add('hidden');
+  document.getElementById('menu').classList.add('hidden');
   document.getElementById('game-board').classList.remove('hidden');
-  
+
   board = Array(9).fill('');
   currentPlayer = 'X';
   mySymbol = 'X';
   opponentSymbol = 'O';
-  updateStatus('Offline Game started. You are X.');
-  renderBoard();
+  showStartScreen();
 }
 
 function handleCellClick(idx) {
@@ -190,9 +204,9 @@ function getCurrentTurn() {
 
 function checkWin(symbol) {
   const winPatterns = [
-    [0,1,2], [3,4,5], [6,7,8],
-    [0,3,6], [1,4,7], [2,5,8],
-    [0,4,8], [2,4,6]
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
   ];
   return winPatterns.some(pattern =>
     pattern.every(idx => board[idx] === symbol)
@@ -214,3 +228,46 @@ function playAgain() {
 function backToMain() {
   window.location.href = '/';
 }
+
+function showStartScreen() {
+  const screen = document.getElementById('game-start-screen');
+  const text = document.getElementById('game-start-text');
+  const board = document.getElementById('game-board');
+
+  screen.classList.remove('hidden');
+  text.classList.remove('hidden');
+  board.classList.add('hidden');
+
+  setTimeout(() => {
+    screen.classList.add('show');
+  }, 100);
+
+  setTimeout(() => {
+    text.classList.add('show');
+  }, 2000);
+
+  setTimeout(() => {
+    text.textContent = "GO!";
+  }, 3200);
+
+  setTimeout(() => {
+    screen.classList.add('fade-out');
+    text.classList.remove('show');
+  }, 3800);
+
+  setTimeout(() => {
+    screen.classList.remove('show', 'fade-out');
+    screen.classList.add('hidden');
+    text.classList.add('hidden');
+    board.classList.remove('hidden');
+    
+    renderBoard();
+    updateStatus('Offline Game started. You are X.');
+  }, 4300);
+}
+
+
+
+
+
+
