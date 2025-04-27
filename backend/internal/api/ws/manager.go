@@ -7,6 +7,7 @@ import (
 	"sync"
 	"tictactoe/internal/logger"
 	"tictactoe/internal/services"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
@@ -117,7 +118,68 @@ func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 				logger.Warn("Cancel match error:", err)
 				_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
 			}
-		case "play_again":
+		case "request_rematch":
+			game, ok := m.gameManager.GetGame(nickname)
+			if !ok || !game.IsFinished {
+				break
+			}
+
+			opponent := ""
+			if nickname == game.PlayerX {
+				opponent = game.PlayerO
+			} else {
+				opponent = game.PlayerX
+			}
+
+			m.mu.RLock()
+			opponentConn, ok := m.clients[opponent]
+			m.mu.RUnlock()
+
+			if ok {
+				err := opponentConn.WriteJSON(map[string]interface{}{
+					"type": "rematch_requested",
+				})
+				if err != nil {
+					logger.Warn("failed to send rematch_requested:", err)
+				}
+
+				m.mu.Lock()
+				defer m.mu.Unlock()
+
+				if game.RematchTimer == nil {
+					game.RematchTimer = time.AfterFunc(15*time.Second, func() {
+						m.mu.RLock()
+						defer m.mu.RUnlock()
+
+						connSelf, okSelf := m.clients[nickname]
+						connOpponent, okOpponent := m.clients[opponent]
+						if !okSelf || !okOpponent {
+							return
+						}
+
+						game, ok := m.gameManager.GetGame(nickname)
+						if !ok {
+							return
+						}
+
+						if !(game.PlayAgainX && game.PlayAgainO) {
+							logger.Info("Rematch timeout: players didn't both accept")
+
+							_ = connSelf.WriteJSON(map[string]interface{}{
+								"type": "rematch_declined",
+							})
+							_ = connOpponent.WriteJSON(map[string]interface{}{
+								"type": "rematch_declined",
+							})
+
+							m.gameManager.FinishGame(m.redis, nickname)
+						}
+					})
+				}
+			} else {
+				logger.Warn("Opponent not found for rematch:", opponent)
+			}
+		case "accept_rematch":
 			msgSelf, msgOpponent, err := m.gameManager.HandlePlayAgain(nickname)
 			if err != nil {
 				logger.Warn("PlayAgain error:", err)
@@ -125,9 +187,71 @@ func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 
-			if msgSelf != nil && msgOpponent != nil {
-				m.sendToGame(nickname, msgSelf)
-				m.sendToGame(nickname, msgOpponent)
+			// Если пока что только один игрок нажал "Play Again" — ничего не делаем
+			if msgSelf == nil || msgOpponent == nil {
+				break
+			}
+
+			// Оба игрока нажали — начинаем новую игру
+			game, ok := m.gameManager.GetGame(nickname)
+			if !ok {
+				break
+			}
+
+			m.mu.Lock()
+			// Останавливаем таймер ожидания реванша
+			if game.RematchTimer != nil {
+				game.RematchTimer.Stop()
+				game.RematchTimer = nil
+			}
+			m.mu.Unlock()
+
+			// Теперь отправляем обоим новое сообщение о старте реванша
+			player1 := msgSelf["opponent"].(string)
+			player2 := msgOpponent["opponent"].(string)
+
+			m.mu.RLock()
+			conn1, ok1 := m.clients[player1]
+			conn2, ok2 := m.clients[player2]
+			m.mu.RUnlock()
+
+			if ok1 {
+				_ = conn1.WriteJSON(map[string]interface{}{
+					"type":     "rematch",
+					"symbol":   msgSelf["symbol"],
+					"opponent": msgSelf["opponent"],
+				})
+			}
+
+			if ok2 {
+				_ = conn2.WriteJSON(map[string]interface{}{
+					"type":     "rematch",
+					"symbol":   msgOpponent["symbol"],
+					"opponent": msgOpponent["opponent"],
+				})
+			}
+
+		case "decline_rematch":
+			game, ok := m.gameManager.GetGame(nickname)
+			if !ok {
+				break
+			}
+
+			opponent := ""
+			if nickname == game.PlayerX {
+				opponent = game.PlayerO
+			} else {
+				opponent = game.PlayerX
+			}
+
+			m.mu.RLock()
+			opponentConn, ok := m.clients[opponent]
+			m.mu.RUnlock()
+
+			if ok {
+				_ = opponentConn.WriteJSON(map[string]interface{}{
+					"type": "rematch_declined",
+				})
 			}
 		case "move":
 			cell, ok := intFrom(msg["cell"])
@@ -146,7 +270,7 @@ func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 			if resultMsg != nil {
 				m.sendToGame(nickname, resultMsg)
 
-				m.gameManager.FinishGame(m.redis, nickname)
+				// m.gameManager.FinishGame(m.redis, nickname)
 			}
 		}
 	}

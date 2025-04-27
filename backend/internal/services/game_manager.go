@@ -160,6 +160,11 @@ func (g *GameManager) HandlePlayAgain(nickname string) (map[string]interface{}, 
 		return nil, nil, nil
 	}
 
+	if game.RematchTimer != nil {
+		game.RematchTimer.Stop()
+		game.RematchTimer = nil
+	}
+
 	players := []string{game.PlayerX, game.PlayerO}
 	symbols := []string{"X", "O"}
 
