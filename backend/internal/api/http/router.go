@@ -22,7 +22,7 @@ func NewRouter(sessionService *services.SessionService) *gin.Engine {
 	manager := ws.NewManager(sessionService.RDB)
 
 	statsHandler := handlers.NewStatsHandler(sessionService.RDB)
-	sessionHandler := handlers.NewSessionHandler(sessionService)
+	sessionHandler := handlers.NewSessionHandler(sessionService, sessionService.RDB)
 	profileHandler := handlers.NewProfileHandler(sessionService.RDB)
 
 	router.GET("/ws", func(c *gin.Context) {

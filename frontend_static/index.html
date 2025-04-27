@@ -10,25 +10,24 @@
   <header>
     <h1>Tic-Tac-Toe</h1>
   </header>
-
   <main>
     <div id="nickname" class="nickname"></div>
-
     <div id="stats" class="stats"></div>
-
     <div id="menu" class="menu">
       <button id="quick-game-btn">Quick Game</button>
       <button id="offline-game-btn">Offline Game</button>
     </div>
-
-    <div id="game-board" class="board"></div>
-
+  
+    <div class="game-area">
+      <div id="game-board" class="board hidden"></div>
+    
+      <div id="restart-menu" class="restart-menu hidden">
+        <button id="play-again-btn">Play Again</button>
+        <button id="back-to-main-btn">Back to Main</button>
+      </div>
+    </div>    
+  
     <div id="game-status" class="game-status"></div>
-
-    <div id="restart-menu" class="restart-menu hidden">
-      <button id="play-again-btn">Play Again</button>
-      <button id="back-to-main-btn">Back to Main</button>
-    </div>
   </main>
 
   <script src="scripts.js" defer></script>

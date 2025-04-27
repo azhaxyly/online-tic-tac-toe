@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderBoard() {
   const boardDiv = document.getElementById('game-board');
 
-  if (boardDiv.children.length === 0) {
+  if (boardDiv.querySelectorAll('.cell').length === 0) {
     for (let idx = 0; idx < 9; idx++) {
       const cellDiv = document.createElement('div');
       cellDiv.classList.add('cell');
@@ -39,13 +39,27 @@ function renderBoard() {
       cellDiv.addEventListener('click', () => handleCellClick(idx));
       boardDiv.appendChild(cellDiv);
     }
+
+    const vLine1 = document.createElement('div');
+    vLine1.classList.add('vertical-line');
+    const vLine2 = document.createElement('div');
+    vLine2.classList.add('vertical-line-right');
+    const hLine1 = document.createElement('div');
+    hLine1.classList.add('horizontal-line');
+    const hLine2 = document.createElement('div');
+    hLine2.classList.add('horizontal-line-bottom');
+
+    boardDiv.appendChild(vLine1);
+    boardDiv.appendChild(vLine2);
+    boardDiv.appendChild(hLine1);
+    boardDiv.appendChild(hLine2);
   }
 
+  const cells = boardDiv.querySelectorAll('.cell');
   board.forEach((cell, idx) => {
-    const cellDiv = boardDiv.children[idx];
-    cellDiv.innerHTML = '';
+    const cellDiv = cells[idx];
 
-    if (cell) {
+    if (cell && cellDiv.children.length === 0) {
       const markSpan = document.createElement('span');
       markSpan.classList.add(cell === 'X' ? 'x' : 'o');
       cellDiv.appendChild(markSpan);
@@ -56,9 +70,12 @@ function renderBoard() {
   });
 }
 
+
   async function startQuickGame() {
     console.log('Starting Quick Game...');
     gameMode = 'online';
+
+    document.getElementById('game-board').classList.remove('hidden');
   
     try {
       const res = await fetch('/api/nickname', { credentials: 'include' });
@@ -126,6 +143,9 @@ function renderBoard() {
 function startOfflineGame() {
   console.log('Starting Offline Game...');
   gameMode = 'offline';
+  
+  document.getElementById('game-board').classList.remove('hidden');
+  
   board = Array(9).fill('');
   currentPlayer = 'X';
   mySymbol = 'X';
@@ -136,6 +156,7 @@ function startOfflineGame() {
 
 function handleCellClick(idx) {
   if (board[idx]) return;
+  if (document.getElementById('restart-menu').classList.contains('hidden') === false) return;
 
   if (gameMode === 'offline') {
     board[idx] = currentPlayer;

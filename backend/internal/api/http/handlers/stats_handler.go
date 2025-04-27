@@ -21,13 +21,12 @@ func NewStatsHandler(rdb *redis.Client) *StatsHandler {
 func (h *StatsHandler) GetStats(c *gin.Context) {
 	ctx := context.Background()
 
-	online, err1 := h.RDB.Get(ctx, "online_users").Int()
-	if err1 == redis.Nil {
-		online = 0
-	} else if err1 != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get online_users"})
+	keys, err := h.RDB.Keys(ctx, "online:*").Result()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get online users"})
 		return
 	}
+	online := len(keys)
 
 	activeGames, err2 := h.RDB.Get(ctx, "active_games").Int()
 	if err2 == redis.Nil {

@@ -27,23 +27,24 @@ func (g *GameManager) CreateGame(p1, p2, sym1, sym2 string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	var px, po string
-	if sym1 == "X" {
-		px, po = p1, p2
-	} else {
-		px, po = p2, p1
+	playerX := p1
+	playerO := p2
+
+	if sym1 != "X" {
+		playerX = p2
+		playerO = p1
 	}
 
 	game := &models.Game{
-		PlayerX:    px,
-		PlayerO:    po,
+		PlayerX:    playerX,
+		PlayerO:    playerO,
 		Turn:       "X",
 		Board:      [9]string{},
 		IsFinished: false,
 	}
 
-	g.games[px] = game
-	g.games[po] = game
+	g.games[playerX] = game
+	g.games[playerO] = game
 }
 
 func (g *GameManager) HandleMove(nickname string, cell int) (map[string]interface{}, map[string]interface{}, error) {
