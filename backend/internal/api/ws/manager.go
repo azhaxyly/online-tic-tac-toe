@@ -124,111 +124,101 @@ func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 
-			opponent := ""
+			var opponent string
 			if nickname == game.PlayerX {
 				opponent = game.PlayerO
 			} else {
 				opponent = game.PlayerX
 			}
 
-			m.mu.RLock()
-			opponentConn, ok := m.clients[opponent]
-			m.mu.RUnlock()
+			m.mu.Lock()
+			if nickname == game.PlayerX {
+				game.PlayAgainX = true
+			} else {
+				game.PlayAgainO = true
+			}
+			if game.RematchTimer == nil {
+				game.RematchTimer = time.AfterFunc(15*time.Second, func() {
+					m.mu.RLock()
+					defer m.mu.RUnlock()
 
-			if ok {
-				err := opponentConn.WriteJSON(map[string]interface{}{
-					"type": "rematch_requested",
+					connSelf, okSelf := m.clients[nickname]
+					connOpp, okOpp := m.clients[opponent]
+					if !okSelf || !okOpp {
+						return
+					}
+
+					gameInner, okInner := m.gameManager.GetGame(nickname)
+					if !okInner {
+						return
+					}
+					if !(gameInner.PlayAgainX && gameInner.PlayAgainO) {
+						_ = connSelf.WriteJSON(map[string]interface{}{"type": "rematch_declined"})
+						_ = connOpp.WriteJSON(map[string]interface{}{"type": "rematch_declined"})
+						m.gameManager.FinishGame(m.redis, nickname)
+					}
 				})
-				if err != nil {
-					logger.Warn("failed to send rematch_requested:", err)
-				}
+			}
+			m.mu.Unlock()
 
-				m.mu.Lock()
-				defer m.mu.Unlock()
-
-				if game.RematchTimer == nil {
-					game.RematchTimer = time.AfterFunc(15*time.Second, func() {
-						m.mu.RLock()
-						defer m.mu.RUnlock()
-
-						connSelf, okSelf := m.clients[nickname]
-						connOpponent, okOpponent := m.clients[opponent]
-						if !okSelf || !okOpponent {
-							return
-						}
-
-						game, ok := m.gameManager.GetGame(nickname)
-						if !ok {
-							return
-						}
-
-						if !(game.PlayAgainX && game.PlayAgainO) {
-							logger.Info("Rematch timeout: players didn't both accept")
-
-							_ = connSelf.WriteJSON(map[string]interface{}{
-								"type": "rematch_declined",
-							})
-							_ = connOpponent.WriteJSON(map[string]interface{}{
-								"type": "rematch_declined",
-							})
-
-							m.gameManager.FinishGame(m.redis, nickname)
-						}
-					})
-				}
+			m.mu.RLock()
+			connOpp, ok2 := m.clients[opponent]
+			m.mu.RUnlock()
+			if ok2 {
+				_ = connOpp.WriteJSON(map[string]interface{}{
+					"type":     "rematch_requested",
+					"opponent": nickname,
+				})
 			} else {
 				logger.Warn("Opponent not found for rematch:", opponent)
 			}
 		case "accept_rematch":
-			msgSelf, msgOpponent, err := m.gameManager.HandlePlayAgain(nickname)
+			msg1, msg2, err := m.gameManager.HandlePlayAgain(nickname)
 			if err != nil {
 				logger.Warn("PlayAgain error:", err)
 				_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
 				break
 			}
 
-			// Если пока что только один игрок нажал "Play Again" — ничего не делаем
-			if msgSelf == nil || msgOpponent == nil {
+			if msg1 == nil || msg2 == nil {
 				break
 			}
 
-			// Оба игрока нажали — начинаем новую игру
 			game, ok := m.gameManager.GetGame(nickname)
 			if !ok {
 				break
 			}
 
+			var selfMsg, oppMsg map[string]interface{}
+			var opponent string
+
+			if nickname == game.PlayerX {
+				selfMsg = msg1
+				oppMsg = msg2
+				opponent = game.PlayerO
+			} else {
+				selfMsg = msg2
+				oppMsg = msg1
+				opponent = game.PlayerX
+			}
+
 			m.mu.Lock()
-			// Останавливаем таймер ожидания реванша
 			if game.RematchTimer != nil {
 				game.RematchTimer.Stop()
 				game.RematchTimer = nil
 			}
 			m.mu.Unlock()
 
-			// Теперь отправляем обоим новое сообщение о старте реванша
-			player1 := msgSelf["opponent"].(string)
-			player2 := msgOpponent["opponent"].(string)
-
 			m.mu.RLock()
-			conn1, ok1 := m.clients[player1]
-			conn2, ok2 := m.clients[player2]
+			selfConn, okSelf := m.clients[nickname]
+			oppConn, okOpp := m.clients[opponent]
 			m.mu.RUnlock()
 
-			if ok1 {
-				_ = conn1.WriteJSON(map[string]interface{}{
-					"type":     "rematch",
-					"symbol":   msgSelf["symbol"],
-					"opponent": msgSelf["opponent"],
-				})
+			if okSelf {
+				_ = selfConn.WriteJSON(selfMsg)
 			}
-
-			if ok2 {
-				_ = conn2.WriteJSON(map[string]interface{}{
-					"type":     "rematch",
-					"symbol":   msgOpponent["symbol"],
-					"opponent": msgOpponent["opponent"],
-				})
+			if okOpp {
+				_ = oppConn.WriteJSON(oppMsg)
 			}
 
 		case "decline_rematch":
@@ -269,8 +259,6 @@ func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 			m.sendToGame(nickname, moveMsg)
 			if resultMsg != nil {
 				m.sendToGame(nickname, resultMsg)
-
-				// m.gameManager.FinishGame(m.redis, nickname)
 			}
 		}
 	}

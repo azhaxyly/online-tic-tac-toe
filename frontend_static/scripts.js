@@ -8,6 +8,7 @@ let winningSymbol = null;
 let wins = 0;
 let losses = 0;
 let draws = 0;
+let hasRematched = false;
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('TicTacToe loaded');
@@ -153,6 +154,7 @@ async function startQuickGame() {
     const msg = JSON.parse(event.data);
     console.log('Received WS message:', msg);
 
+    console.log('TYPE RECEIVED:', msg.type);
     switch (msg.type) {
       case 'match_found':
         mySymbol = msg.symbol;
@@ -202,7 +204,9 @@ async function startQuickGame() {
         updateStatus("Match cancelled");
         backToMain();
         break;
+
       case 'rematch_requested':
+        console.log('rematch_requested received. Current gameMode:', gameMode);
         if (gameMode === 'online') {
           showRematchDialog();
         } else {
@@ -211,21 +215,18 @@ async function startQuickGame() {
         break;
 
       case 'rematch':
+        hasRematched = true;
         mySymbol = msg.symbol;
         opponentSymbol = msg.opponent;
-        board = Array(9).fill('');
-        document.getElementById('restart-menu').classList.add('hidden');
-        document.getElementById('game-board').classList.remove('hidden');
-        renderBoard();
-        updateStatus(mySymbol === 'X' ? "Your turn" : "Opponent's turn");
+        startNewGame();
         break;
-
 
       case 'rematch_declined':
-        updateStatus('Opponent declined rematch.');
-        setTimeout(backToMain, 3000);
+        if (!hasRematched) {
+          updateStatus('Opponent declined rematch.');
+          setTimeout(backToMain, 3000);
+        }
         break;
-
     }
   };
 
@@ -360,6 +361,7 @@ function playAgain() {
 }
 
 function backToMain() {
+  hasRematched = false;
   window.location.href = '/';
 }
 
