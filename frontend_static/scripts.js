@@ -9,6 +9,8 @@ let wins = 0;
 let losses = 0;
 let draws = 0;
 let hasRematched = false;
+let rematchTimerId = null;
+const REMATCH_DURATION = 15; // секунд
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('TicTacToe loaded');
@@ -362,6 +364,7 @@ function playAgain() {
 
 function backToMain() {
   hasRematched = false;
+  clearInterval(rematchTimerId);
   window.location.href = '/';
 }
 
@@ -381,20 +384,43 @@ function updateScore() {
 }
 
 function showRematchDialog() {
-  const modal = document.getElementById('rematch-modal');
-  modal.classList.remove('hidden');
+  const box = document.getElementById('rematch-box');
+  box.classList.remove('hidden');
+
+  const prog = box.querySelector('.timer-progress');
+  prog.style.width = '100%';
+  prog.classList.remove('blink');
+
+  let remaining = REMATCH_DURATION;
+  clearInterval(rematchTimerId);
+  rematchTimerId = setInterval(() => {
+    remaining--;
+    const pct = (remaining / REMATCH_DURATION) * 100;
+    prog.style.width = pct + '%';
+
+    if (remaining <= 5) {
+      prog.classList.add('blink');
+    }
+    if (remaining <= 0) {
+      clearInterval(rematchTimerId);
+      box.classList.add('hidden');
+      backToMain();
+    }
+  }, 1000);
 
   const acceptBtn = document.getElementById('accept-rematch-btn');
   const declineBtn = document.getElementById('decline-rematch-btn');
 
   acceptBtn.onclick = () => {
     ws.send(JSON.stringify({ type: 'accept_rematch' }));
-    modal.classList.add('hidden');
+    clearInterval(rematchTimerId);
+    box.classList.add('hidden');
   };
 
   declineBtn.onclick = () => {
     ws.send(JSON.stringify({ type: 'decline_rematch' }));
-    modal.classList.add('hidden');
+    clearInterval(rematchTimerId);
+    box.classList.add('hidden');
     backToMain();
   };
 }

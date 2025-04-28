@@ -4,50 +4,61 @@
 <head>
   <meta charset="UTF-8">
   <title>Tic-Tac-Toe</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-
   <header>
     <img src="./assets/title.png" alt="Tic-Tac-Toe Logo Text" class="logo-text">
     <img src="./assets/game.png" alt="Tic-Tac-Toe Board" class="logo-board">
   </header>
+
   <main>
     <div id="nickname" class="nickname"></div>
     <div id="stats" class="stats"></div>
+
     <div id="menu" class="menu">
       <button id="quick-game-btn">Quick Game</button>
       <button id="offline-game-btn">Offline Game</button>
     </div>
+
     <button id="cancel-search-btn" class="hidden">Cancel</button>
+
     <div id="game-start-screen" class="start-screen hidden">
       <div class="start-half left"></div>
       <div class="start-half right"></div>
       <div id="game-start-text" class="start-text hidden">GET READY</div>
     </div>
-    <div id="rematch-modal" class="modal hidden">
-      <div class="modal-content">
+
+    <div class="game-area">
+      <div id="game-board" class="board hidden"></div>
+
+      <div id="restart-menu" class="restart-menu hidden">
+        <button id="play-again-btn">Play Again</button>
+        <button id="back-to-main-btn">Back to Main</button>
+      </div>
+
+      <div id="rematch-box" class="rematch-box hidden">
         <p>Opponent wants a rematch. Accept?</p>
         <div class="modal-buttons">
           <button id="accept-rematch-btn">Accept</button>
           <button id="decline-rematch-btn">Decline</button>
         </div>
+        <div class="timer-line">
+          <div class="timer-progress"></div>
+        </div>
       </div>
     </div>
-    <div class="game-area">
-      <div id="game-board" class="board hidden"></div>
-      <div id="restart-menu" class="restart-menu hidden">
-        <button id="play-again-btn">Play Again</button>
-        <button id="back-to-main-btn">Back to Main</button>
-      </div>
-    </div>
+
     <div id="game-status" class="game-status"></div>
     <div id="game-score" class="game-score"></div>
   </main>
 
   <script src="scripts.js" defer></script>
-
 </body>
 
 </html>
