@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+
 	"tictactoe/internal/logger"
 
 	"github.com/joho/godotenv"

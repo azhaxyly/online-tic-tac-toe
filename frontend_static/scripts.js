@@ -4,7 +4,6 @@ let gameMode = null;
 let ws = null;
 let mySymbol = '';
 let opponentSymbol = '';
-let winningSymbol = null;
 let wins = 0;
 let losses = 0;
 let draws = 0;
@@ -148,6 +147,7 @@ async function startQuickGame() {
   document.getElementById('stats').classList.add('hidden');
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('cancel-search-btn').classList.remove('hidden');
+  hideSideGifs();
 
   updateStatus('Searching for opponent...');
 
@@ -181,6 +181,7 @@ function startOfflineGame() {
   document.getElementById('stats').classList.add('hidden');
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('game-board').classList.remove('hidden');
+  hideSideGifs();
 
   board = Array(9).fill('');
   currentPlayer = 'X';
@@ -306,6 +307,7 @@ function backToMain() {
   hasRematched = false;
   clearInterval(rematchTimerId);
   window.location.href = '/';
+  showSideGifs();
 }
 
 function cancelSearch() {
@@ -665,3 +667,10 @@ function handleMoveTimeout() {
   localStorage.removeItem('savedGame');
 }
 
+function hideSideGifs() {
+  document.querySelectorAll('.side-gif').forEach(img => img.classList.add('hidden'));
+}
+
+function showSideGifs() {
+  document.querySelectorAll('.side-gif').forEach(img => img.classList.remove('hidden'));
+}

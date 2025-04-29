@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"time"
+
 	"tictactoe/internal/logger"
 	"tictactoe/internal/models"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -209,9 +210,14 @@ func opposite(s string) string {
 
 func checkWin(board [9]string) (string, []int) {
 	winPatterns := [][]int{
-		{0, 1, 2}, {3, 4, 5}, {6, 7, 8},
-		{0, 3, 6}, {1, 4, 7}, {2, 5, 8},
-		{0, 4, 8}, {2, 4, 6},
+		{0, 1, 2},
+		{3, 4, 5},
+		{6, 7, 8},
+		{0, 3, 6},
+		{1, 4, 7},
+		{2, 5, 8},
+		{0, 4, 8},
+		{2, 4, 6},
 	}
 
 	for _, pattern := range winPatterns {

@@ -18,6 +18,24 @@ header {
   gap: 20px;
 }
 
+.side-gif {
+  position: fixed;
+  top: 0;
+  height: 100vh;
+  width: 50vw;
+  object-fit: cover;
+  z-index: -1;
+  opacity: 0.20;
+}
+
+.side-gif.left {
+  left: 0;
+}
+
+.side-gif.right {
+  right: 0;
+}
+
 .logo-text {
   width: 300px;
   height: auto;

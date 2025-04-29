@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sync"
 	"time"
 
 	"tictactoe/internal/logger"
 	"tictactoe/internal/services"
-
-	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"

@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"time"
+
 	"tictactoe/internal/models"
 	"tictactoe/internal/store"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 )
