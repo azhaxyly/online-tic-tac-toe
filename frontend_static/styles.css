@@ -181,6 +181,8 @@ button:hover {
 }
 
 .game-status {
+  position: relative;
+  z-index: 1001;
   margin-top: 20px;
   font-size: 1.8rem;
   color: #ffffff;
@@ -189,12 +191,12 @@ button:hover {
 }
 
 .game-area {
+  position: relative;   /* теперь все абсолютные дочки считаются внутри него */
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  gap: 60px;
+  gap: 16px;
   margin-top: 30px;
-  position: relative;
 }
 
 /* Таймер хода */
@@ -311,7 +313,7 @@ button:hover {
   position: absolute;
   width: 90%;
   height: 90%;
-  border: 18px solid #ff1744;
+  border: 2.5vmin solid #ff1744;
   border-radius: 50%;
   top: 50%;
   left: 50%;
@@ -465,8 +467,9 @@ button:hover {
 
 .rematch-box {
   position: absolute;
-  top: 20px;
-  right: -280px;
+  top: 0;
+  left: 100%;          /* ровно за правой гранью .game-area */
+  margin-left: 16px;   /* небольшой отступ */
   width: 260px;
   background-color: #018d22;
   color: #fff;
@@ -476,6 +479,21 @@ button:hover {
   font-size: 0.9rem;
   pointer-events: auto;
   z-index: 1000;
+  transform: none;     /* сбросим любые translate */
+}
+
+@media (max-width: 600px) {
+  .rematch-box {
+    position: fixed;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 20px);
+    max-width: 300px;
+    top: auto;
+    right: auto;
+    z-index: 1000;
+  }
 }
 
 .rematch-box:not(.hidden) ~ .board, 
@@ -561,6 +579,37 @@ button:hover {
 .rematch-box .modal-buttons button:hover {
   background: #f0f0f0;
   transform: translateY(-1px);
+}
+
+@media (max-width: 600px) {
+  .game-area {
+    flex-direction: column;    /* stack vertically */
+    align-items: center;       /* center both board and menu */
+  }
+
+  .restart-menu {
+    position: static;          /* no longer absolute */
+    margin-top: 16px;          /* space from board */
+    bottom: auto; left: auto;  /* reset any bottom/left */
+    transform: none;           /* reset any translateX */
+    flex-direction: row;
+    gap: 8px;
+    width: 90vw;               /* match the shrunken board */
+    justify-content: space-between;
+    z-index: 1;                /* sit below the board’s z-index */
+  }
+  .restart-menu button {
+    width: 48%;                /* two side-by-side buttons */
+  }
+}
+
+/* For larger screens, just add a bit of top‐margin so it never overlaps */
+@media (min-width: 601px) {
+  .restart-menu {
+    margin-top: 24px;
+    position: relative;
+    z-index: 1;
+  }
 }
 
 button {
