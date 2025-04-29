@@ -39,7 +39,7 @@ func (s *SessionService) GetOrCreateUser(sessionID string) (*models.User, error)
 }
 
 func (s *SessionService) generateNickname() string {
-	words := []string{"Alem", "Tomorrow", "Jews", "Pups", "Pudge", "Gau"}
+	words := []string{"Alem", "Tomorrow", "Jews", "Pups", "Pudge", "Gau", "Tajik"}
 	n := rand.Intn(10000)
 	adjective := words[rand.Intn(len(words))]
 	return fmt.Sprintf("%s%d", adjective, n)

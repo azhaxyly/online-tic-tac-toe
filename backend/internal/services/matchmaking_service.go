@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"math/rand"
-	"tictactoe/internal/logger"
+	"sync"
 	"time"
+
+	"tictactoe/internal/logger"
 
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
@@ -13,14 +15,14 @@ import (
 
 type MatchmakingService struct {
 	RDB         *redis.Client
-	Clients     map[string]*websocket.Conn
+	Clients     *sync.Map
 	GameManager *GameManager
 }
 
-func NewMatchmakerService(rdb *redis.Client, clients map[string]*websocket.Conn, gm *GameManager) *MatchmakingService {
+func NewMatchmakerService(rdb *redis.Client, clientsMap *sync.Map, gm *GameManager) *MatchmakingService {
 	return &MatchmakingService{
 		RDB:         rdb,
-		Clients:     clients,
+		Clients:     clientsMap,
 		GameManager: gm,
 	}
 }
@@ -38,18 +40,15 @@ func (m *MatchmakingService) HandleFindMatch(nickname string) error {
 
 	logger.Info("Added to match queue:", nickname)
 
-	conn, ok := m.Clients[nickname]
-	if ok {
-		_ = conn.WriteJSON(map[string]interface{}{
-			"type": "searching",
-		})
+	if c, ok := m.Clients.Load(nickname); ok {
+		conn := c.(*websocket.Conn)
+		_ = conn.WriteJSON(map[string]interface{}{"type": "searching"})
 	}
 
 	players, err := m.RDB.SMembers(ctx, "match_queue").Result()
 	if err != nil {
 		return err
 	}
-
 	if len(players) < 2 {
 		return nil
 	}
@@ -59,7 +58,6 @@ func (m *MatchmakingService) HandleFindMatch(nickname string) error {
 		players[i], players[j] = players[j], players[i]
 	})
 	p1, p2 := players[0], players[1]
-
 	_, _ = m.RDB.SRem(ctx, "match_queue", p1, p2).Result()
 
 	symbols := []string{"X", "O"}
@@ -79,33 +77,25 @@ func (m *MatchmakingService) HandleFindMatch(nickname string) error {
 
 func (m *MatchmakingService) HandleCancelMatch(nickname string) error {
 	ctx := context.Background()
-
 	removed, err := m.RDB.SRem(ctx, "match_queue", nickname).Result()
 	if err != nil {
 		return err
 	}
-
 	if removed == 0 {
 		return errors.New("not in queue")
 	}
 
-	conn, ok := m.Clients[nickname]
-	if ok {
-		msg := map[string]interface{}{
-			"type": "match_cancelled",
-		}
-		_ = conn.WriteJSON(msg)
+	if c, ok := m.Clients.Load(nickname); ok {
+		conn := c.(*websocket.Conn)
+		_ = conn.WriteJSON(map[string]interface{}{"type": "match_cancelled"})
 	}
-
 	logger.Info("Removed from match queue:", nickname)
 	return nil
 }
 
 func (m *MatchmakingService) HandleDisconnect(nickname string) {
 	ctx := context.Background()
-
-	_, err := m.RDB.SRem(ctx, "match_queue", nickname).Result()
-	if err != nil {
+	if _, err := m.RDB.SRem(ctx, "match_queue", nickname).Result(); err != nil {
 		logger.Warn("failed to remove from match_queue:", err)
 	}
 
@@ -113,34 +103,27 @@ func (m *MatchmakingService) HandleDisconnect(nickname string) {
 	if !ok {
 		return
 	}
-
-	opponent := ""
-	if nickname == game.PlayerX {
-		opponent = game.PlayerO
-	} else {
+	opponent := game.PlayerO
+	if nickname == game.PlayerO {
 		opponent = game.PlayerX
 	}
 
-	conn, ok := m.Clients[opponent]
-	if ok {
-		msg := map[string]interface{}{
-			"type": "opponent_left",
-		}
-		_ = conn.WriteJSON(msg)
+	if c, ok := m.Clients.Load(opponent); ok {
+		conn := c.(*websocket.Conn)
+		_ = conn.WriteJSON(map[string]interface{}{"type": "opponent_left"})
 	}
 
 	m.GameManager.FinishGame(m.RDB, nickname)
 }
 
 func (m *MatchmakingService) sendMatchFound(player, opponent, symbol string) {
-	conn, ok := m.Clients[player]
-	if !ok {
-		return
+	if c, ok := m.Clients.Load(player); ok {
+		conn := c.(*websocket.Conn)
+		msg := map[string]interface{}{
+			"type":     "match_found",
+			"symbol":   symbol,
+			"opponent": opponent,
+		}
+		_ = conn.WriteJSON(msg)
 	}
-	msg := map[string]interface{}{
-		"type":     "match_found",
-		"symbol":   symbol,
-		"opponent": opponent,
-	}
-	_ = conn.WriteJSON(msg)
 }

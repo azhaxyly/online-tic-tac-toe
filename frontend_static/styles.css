@@ -197,6 +197,48 @@ button:hover {
   position: relative;
 }
 
+/* Таймер хода */
+.move-timer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 8px;
+  background: rgba(255,255,255,0.2);
+  z-index: 10000;
+}
+
+.move-timer-progress {
+  height: 100%;
+  width: 0%;
+  background: #ff1744;
+  transition: width 0.1s linear;
+}
+
+@keyframes blink-slow {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+.blink-slow {
+  animation: blink-slow 1s infinite;
+}
+
+@keyframes blink-med {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+.blink-med {
+  animation: blink-med 0.5s infinite;
+}
+
+@keyframes blink-fast {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+.blink-fast {
+  animation: blink-fast 0.25s infinite;
+}
+
 .restart-menu {
   position: relative;
   display: flex;
@@ -450,13 +492,13 @@ button:hover {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px; /* Увеличенный отступ между Accept и Decline */
+  gap: 16px;
   margin-bottom: 12px;
 }
 
 .rematch-box .modal-buttons button {
-  width: 90%;        /* кнопки почти на всю ширину бокса */
-  padding: 16px 0;   /* вертикальная толщина кнопки */
+  width: 90%;
+  padding: 16px 0;
   font-size: 1.2rem;
   border-radius: 10px;
 }
@@ -495,20 +537,18 @@ button:hover {
   50%      { opacity: 0.3; }
 }
 
-/* Контейнер-кнопки: заполняет всю ширину бокса, ставит вертикальный стек и gap */
 .rematch-box .modal-buttons {
   display: flex;
   flex-direction: column;
   width: 100%;
-  gap: 24px;         /* отступ между Accept и Decline */
-  margin-bottom: 12px; /* отступ снизу до таймера */
+  gap: 24px;
+  margin-bottom: 12px;
   box-sizing: border-box;
 }
 
-/* Кнопки: full-width по контентной области бокса, с собственными внутр. полями */
 .rematch-box .modal-buttons button {
-  width: 100%;       /* ровно под внутреннюю ширину .rematch-box */
-  padding: 16px 0;   /* 16px сверху и снизу, по горизонтали 0 (заполняется width) */
+  width: 100%;
+  padding: 16px 0;
   font-size: 1.2rem;
   border-radius: 10px;
   cursor: pointer;

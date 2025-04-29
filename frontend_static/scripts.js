@@ -10,27 +10,45 @@ let losses = 0;
 let draws = 0;
 let hasRematched = false;
 let rematchTimerId = null;
-const REMATCH_DURATION = 15; // секунд
+let currentTurn = '';
+let moveTimerInterval = null;
+let moveDeadline = null;
+const MOVE_TIMEOUT = 15;
+const REMATCH_DURATION = 15;
+
 
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('TicTacToe loaded');
+  document
+    .getElementById('quick-game-btn')
+    .addEventListener('click', startQuickGame);
+  document
+    .getElementById('offline-game-btn')
+    .addEventListener('click', startOfflineGame);
+  document
+    .getElementById('play-again-btn')
+    .addEventListener('click', playAgain);
+  document
+    .getElementById('back-to-main-btn')
+    .addEventListener('click', backToMain);
+  document
+    .getElementById('cancel-search-btn')
+    .addEventListener('click', cancelSearch);
 
-  fetch('/api/nickname', { credentials: 'include' })
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById('nickname').textContent = `Hello, ${data.nickname}!`;
-    });
+  const saved = JSON.parse(localStorage.getItem('savedGame'));
+  if (saved && saved.gameMode === 'online') {
+    console.log('Restoring saved online game...');
+    restoreOnlineGame(saved);
+  } else {
+    fetch('/api/nickname', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('nickname').textContent = `Hello, ${data.nickname}!`;
+      });
 
-  loadStats();
-  setInterval(loadStats, 60000);
-
-  document.getElementById('quick-game-btn').addEventListener('click', startQuickGame);
-  document.getElementById('offline-game-btn').addEventListener('click', startOfflineGame);
-  document.getElementById('play-again-btn').addEventListener('click', playAgain);
-  document.getElementById('back-to-main-btn').addEventListener('click', backToMain);
-  document.getElementById('cancel-search-btn').addEventListener('click', cancelSearch);
-
-  renderBoard();
+    loadStats();
+    setInterval(loadStats, 60000);
+    renderBoard();
+  }
 });
 
 async function loadStats() {
@@ -151,93 +169,7 @@ async function startQuickGame() {
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: 'find_match' }));
   };
-
-  ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    console.log('Received WS message:', msg);
-
-    console.log('TYPE RECEIVED:', msg.type);
-    switch (msg.type) {
-      case 'match_found':
-        mySymbol = msg.symbol;
-        document.getElementById('cancel-search-btn').classList.add('hidden');
-        opponentSymbol = mySymbol === 'X' ? 'O' : 'X';
-
-        showStartScreen();
-
-        setTimeout(() => {
-          document.getElementById('game-board').classList.remove('hidden');
-          board = Array(9).fill('');
-          renderBoard();
-          updateStatus(`Matched! You are '${mySymbol}'`);
-        }, 4300);
-        break;
-
-      case 'move_made':
-        board[msg.cell] = msg.by;
-        renderBoard();
-        updateStatus(msg.by === mySymbol ? "Opponent's turn" : "Your turn");
-        break;
-
-      case 'game_over':
-        updateStatus(msg.result === 'draw' ? "Draw!" : `${msg.result} wins!`);
-        if (msg.result === 'draw') {
-          draws++;
-        } else if (msg.result === mySymbol) {
-          wins++;
-        } else {
-          losses++;
-        }
-        updateScore();
-        endGame();
-        setTimeout(() => {
-          if (msg.result !== 'draw' && msg.winningPattern) {
-            highlightWinningCells(msg.winningPattern);
-          }
-        }, 200);
-        break;
-
-      case 'opponent_left':
-        updateStatus("Opponent disconnected!");
-        endGame();
-        break;
-
-      case 'match_cancelled':
-        updateStatus("Match cancelled");
-        backToMain();
-        break;
-
-      case 'rematch_requested':
-        console.log('rematch_requested received. Current gameMode:', gameMode);
-        if (gameMode === 'online') {
-          showRematchDialog();
-        } else {
-          console.warn('Ignored rematch_requested: not in online game.');
-        }
-        break;
-
-      case 'rematch':
-        hasRematched = true;
-        mySymbol = msg.symbol;
-        opponentSymbol = msg.opponent;
-        startNewGame();
-        break;
-
-      case 'rematch_declined':
-        if (!hasRematched) {
-          updateStatus('Opponent declined rematch.');
-          setTimeout(backToMain, 3000);
-        }
-        break;
-    }
-  };
-
-  ws.onclose = () => {
-    console.log('WebSocket closed');
-    if (gameMode === 'online') {
-      updateStatus('Disconnected from server');
-    }
-  };
+  setupWebSocketHandlers();
 }
 
 function startOfflineGame() {
@@ -259,7 +191,7 @@ function startOfflineGame() {
 
 function handleCellClick(idx) {
   if (board[idx]) return;
-  if (document.getElementById('restart-menu').classList.contains('hidden') === false) return;
+  if (!document.getElementById('restart-menu').classList.contains('hidden')) return;
 
   if (gameMode === 'offline') {
     board[idx] = currentPlayer;
@@ -281,9 +213,17 @@ function handleCellClick(idx) {
   }
 
   if (gameMode === 'online') {
-    if (!ws || mySymbol !== getCurrentTurn()) return;
+    if (!ws || mySymbol !== currentTurn) return;
     board[idx] = mySymbol;
     renderBoard();
+
+    localStorage.setItem('savedGame', JSON.stringify({
+      gameMode,
+      mySymbol,
+      opponentSymbol,
+      board
+    }));
+
     ws.send(JSON.stringify({ type: 'move', cell: idx }));
   }
 }
@@ -421,7 +361,6 @@ function showRematchDialog() {
     ws.send(JSON.stringify({ type: 'decline_rematch' }));
     clearInterval(rematchTimerId);
     box.classList.add('hidden');
-    backToMain();
   };
 }
 
@@ -436,6 +375,34 @@ function startNewGame() {
   document.getElementById('restart-menu').classList.add('hidden');
   updateStatus(mySymbol === 'X' ? "Your turn" : "Opponent's turn");
   renderBoard();
+}
+
+function restoreOnlineGame(saved) {
+  gameMode = 'online';
+  mySymbol = saved.mySymbol;
+  opponentSymbol = saved.opponentSymbol;
+
+  document.querySelector('header').classList.add('hidden');
+  document.getElementById('nickname').classList.add('hidden');
+  document.getElementById('stats').classList.add('hidden');
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('cancel-search-btn').classList.add('hidden');
+  document.getElementById('restart-menu').classList.add('hidden');
+  document.getElementById('game-board').classList.remove('hidden');
+
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => {
+    console.log('WebSocket reconnected');
+    ws.send(JSON.stringify({ type: 'rejoin_match' }));
+  };
+  setupWebSocketHandlers();
+  const stored = parseInt(localStorage.getItem('moveDeadline'), 10);
+  if (stored) {
+    const now = Date.now();
+    if (stored <= now) {
+      handleMoveTimeout();
+    }
+  }
 }
 
 function showStartScreen() {
@@ -474,3 +441,226 @@ function showStartScreen() {
     updateStatus('Offline Game started. You are X.');
   }, 4300);
 }
+
+function setupWebSocketHandlers() {
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    console.log('Received WS message:', msg);
+    console.log('TYPE RECEIVED:', msg.type);
+
+    switch (msg.type) {
+
+      case 'game_state': {
+        board = msg.board;
+        renderBoard();
+        currentTurn = msg.turn;
+
+        if (msg.isFinished) {
+          updateStatus(msg.winner ? `${msg.winner} wins!` : 'Draw!');
+          endGame();
+          localStorage.removeItem('savedGame');
+          stopMoveTimer();
+        } else {
+          updateStatus(
+            currentTurn === mySymbol
+              ? "Your turn"
+              : "Opponent's turn"
+          );
+          if (currentTurn === mySymbol) {
+            const stored = parseInt(localStorage.getItem('moveDeadline'), 10);
+            const now = Date.now();
+            if (stored && stored > now) {
+              startMoveTimer((stored - now) / 1000);
+            } else {
+              if (stored && stored <= now) {
+                handleMoveTimeout();
+              } else {
+                startMoveTimer();
+              }
+            }
+          } else {
+            stopMoveTimer();
+          }
+        }
+        break;
+      }
+
+      case 'match_found': {
+        mySymbol = msg.symbol;
+        opponentSymbol = mySymbol === 'X' ? 'O' : 'X';
+        currentTurn = 'X';
+
+        document.getElementById('cancel-search-btn').classList.add('hidden');
+        showStartScreen();
+
+        setTimeout(() => {
+          document.getElementById('game-board').classList.remove('hidden');
+          board = Array(9).fill('');
+          renderBoard();
+          updateStatus(`Matched! You are '${mySymbol}'`);
+          localStorage.setItem('savedGame', JSON.stringify({
+            gameMode: 'online',
+            mySymbol,
+            opponentSymbol,
+            board
+          }));
+          if (currentTurn === mySymbol) startMoveTimer();
+        }, 4300);
+        break;
+      }
+      case 'move_made': {
+        board[msg.cell] = msg.by;
+        renderBoard();
+
+        currentTurn = msg.by === 'X' ? 'O' : 'X';
+
+        localStorage.setItem('savedGame', JSON.stringify({
+          gameMode,
+          mySymbol,
+          opponentSymbol,
+          board
+        }));
+
+        updateStatus(
+          currentTurn === mySymbol
+            ? "Your turn"
+            : "Opponent's turn"
+        );
+
+        if (currentTurn === mySymbol) {
+          const stored = parseInt(localStorage.getItem('moveDeadline'), 10);
+          const now = Date.now();
+          if (stored && stored > now) {
+            startMoveTimer((stored - now) / 1000);
+          } else {
+            if (stored && stored <= now) {
+              handleMoveTimeout();
+            } else {
+              startMoveTimer();
+            }
+          }
+        } else {
+          stopMoveTimer();
+        }
+        break;
+      }
+
+      case 'game_over': {
+        updateStatus(
+          msg.result === 'draw'
+            ? "Draw!"
+            : `${msg.result} wins!`
+        );
+        if (msg.result === 'draw') draws++;
+        else if (msg.result === mySymbol) wins++;
+        else losses++;
+        updateScore();
+        endGame();
+
+        setTimeout(() => {
+          if (msg.result !== 'draw' && msg.winningPattern) {
+            highlightWinningCells(msg.winningPattern);
+          }
+        }, 200);
+
+        localStorage.removeItem('savedGame');
+        stopMoveTimer();
+        break;
+      }
+      case 'opponent_left': {
+        updateStatus("Opponent disconnected!");
+        endGame();
+        stopMoveTimer();
+        break;
+      }
+      case 'rematch_requested':
+        showRematchDialog();
+        break;
+      case 'rematch':
+        hasRematched = true;
+        mySymbol = msg.symbol;
+        opponentSymbol = msg.opponent;
+        currentTurn = 'X';
+        startNewGame();
+        if (currentTurn === mySymbol) startMoveTimer();
+        break;
+      case 'rematch_declined':
+        if (!hasRematched) {
+          updateStatus('Opponent declined rematch.');
+          setTimeout(backToMain, 3000);
+        }
+        break;
+
+      case 'error':
+        if (msg.message === 'no active game') {
+          localStorage.removeItem('savedGame');
+          backToMain();
+        } else {
+          console.error('Server error:', msg.message);
+        }
+        break;
+
+      default:
+        console.warn('Unhandled message type:', msg.type);
+    }
+  };
+
+  ws.onclose = () => {
+    console.log('WebSocket closed');
+    stopMoveTimer();
+    if (gameMode === 'online') {
+      updateStatus('Disconnected from server');
+    }
+  };
+}
+
+function startMoveTimer(seconds = MOVE_TIMEOUT) {
+  const bar  = document.getElementById('move-timer');
+  const prog = document.getElementById('move-timer-progress');
+  const now  = Date.now();
+  moveDeadline = now + seconds*1000;
+  localStorage.setItem('moveDeadline', moveDeadline);
+
+  bar.classList.remove('hidden');
+  prog.classList.remove('blink-slow','blink-med','blink-fast');
+
+  clearInterval(moveTimerInterval);
+  moveTimerInterval = setInterval(() => {
+    const remainingMs = moveDeadline - Date.now();
+    if (remainingMs <= 0) {
+      clearInterval(moveTimerInterval);
+      bar.classList.add('hidden');
+      prog.classList.remove('blink-slow','blink-med','blink-fast');
+      localStorage.removeItem('moveDeadline');
+      handleMoveTimeout();
+    } else {
+      const pct = (remainingMs / (MOVE_TIMEOUT*1000)) * 100;
+      prog.style.width = `${pct}%`;
+
+      prog.classList.remove('blink-slow','blink-med','blink-fast');
+      if (remainingMs <= 1000) {
+        prog.classList.add('blink-fast');
+      } else if (remainingMs <= 3000) {
+        prog.classList.add('blink-med');
+      } else if (remainingMs <= 5000) {
+        prog.classList.add('blink-slow');
+      }
+    }
+  }, 100);
+}
+
+function stopMoveTimer() {
+  clearInterval(moveTimerInterval);
+  document.getElementById('move-timer').classList.add('hidden');
+  localStorage.removeItem('moveDeadline');
+}
+
+function handleMoveTimeout() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'forfeit' }));
+  }
+  updateStatus('Time up! You lose.');
+  endGame();
+  localStorage.removeItem('savedGame');
+}
+
