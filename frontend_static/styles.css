@@ -191,7 +191,7 @@ button:hover {
 }
 
 .game-area {
-  position: relative;   /* теперь все абсолютные дочки считаются внутри него */
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -468,8 +468,8 @@ button:hover {
 .rematch-box {
   position: absolute;
   top: 0;
-  left: 100%;          /* ровно за правой гранью .game-area */
-  margin-left: 16px;   /* небольшой отступ */
+  left: 100%;          
+  margin-left: 16px;  
   width: 260px;
   background-color: #018d22;
   color: #fff;
@@ -479,7 +479,7 @@ button:hover {
   font-size: 0.9rem;
   pointer-events: auto;
   z-index: 1000;
-  transform: none;     /* сбросим любые translate */
+  transform: none;
 }
 
 @media (max-width: 600px) {
@@ -583,27 +583,26 @@ button:hover {
 
 @media (max-width: 600px) {
   .game-area {
-    flex-direction: column;    /* stack vertically */
-    align-items: center;       /* center both board and menu */
+    flex-direction: column;    
+    align-items: center;       
   }
 
   .restart-menu {
-    position: static;          /* no longer absolute */
-    margin-top: 16px;          /* space from board */
-    bottom: auto; left: auto;  /* reset any bottom/left */
-    transform: none;           /* reset any translateX */
+    position: static;          
+    margin-top: 16px;         
+    bottom: auto; left: auto;  
+    transform: none;           
     flex-direction: row;
     gap: 8px;
-    width: 90vw;               /* match the shrunken board */
+    width: 90vw;               
     justify-content: space-between;
-    z-index: 1;                /* sit below the board’s z-index */
+    z-index: 1;                
   }
   .restart-menu button {
-    width: 48%;                /* two side-by-side buttons */
+    width: 48%;                
   }
 }
 
-/* For larger screens, just add a bit of top‐margin so it never overlaps */
 @media (min-width: 601px) {
   .restart-menu {
     margin-top: 24px;

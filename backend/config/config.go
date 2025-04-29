@@ -23,7 +23,7 @@ func Load() *Config {
 		ServerPort:  mustGet("SERVER_PORT"),
 		PostgresDSN: mustGet("POSTGRES_DSN"),
 		RedisAddr:   mustGet("REDIS_ADDR"),
-		RedisPass:   os.Getenv("REDIS_PASS"), // may be empty
+		RedisPass:   os.Getenv("REDIS_PASS"),
 	}
 }
 

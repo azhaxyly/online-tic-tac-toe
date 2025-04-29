@@ -406,6 +406,7 @@ function restoreOnlineGame(saved) {
 }
 
 function showStartScreen() {
+  document.getElementById('game-status').textContent = '';
   const screen = document.getElementById('game-start-screen');
   const text = document.getElementById('game-start-text');
   const board = document.getElementById('game-board');

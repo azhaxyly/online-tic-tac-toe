@@ -1,6 +1,7 @@
 package http
 
 import (
+	"io"
 	"tictactoe/internal/api/http/handlers"
 	"tictactoe/internal/api/ws"
 	"tictactoe/internal/services"
@@ -10,10 +11,13 @@ import (
 )
 
 func NewRouter(sessionService *services.SessionService) *gin.Engine {
-	router := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	gin.DefaultWriter = io.Discard
+
+	router := gin.New()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:8080"}, // python3 -m http.server 5500
+		AllowOrigins:     []string{"http://localhost:8080"},
 		AllowMethods:     []string{"GET", "POST"},
 		AllowHeaders:     []string{"Content-Type"},
 		AllowCredentials: true,

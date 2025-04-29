@@ -16,7 +16,7 @@ import (
 )
 
 type WSManager struct {
-	clients     sync.Map // map[string]*websocket.Conn
+	clients     sync.Map
 	redis       *redis.Client
 	matchmaker  *services.MatchmakingService
 	gameManager *services.GameManager
@@ -37,10 +37,43 @@ var upgrader = websocket.Upgrader{
 }
 
 func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
+	nickname, err := m.authenticate(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	conn, err := m.upgradeConnection(w, r)
+	if err != nil {
+		logger.Error("WebSocket upgrade failed:", err)
+		return
+	}
+
+	logger.Info("WebSocket connected:", nickname)
+	m.clients.Store(nickname, conn)
+
+	ctx := context.Background()
+	_ = m.redis.Incr(ctx, "online_users").Err()
+
+	defer func() {
+		conn.Close()
+		m.clients.Delete(nickname)
+		count, err := m.redis.Decr(ctx, "online_users").Result()
+		if err != nil {
+			logger.Warn("failed to decrement online_users:", err)
+		} else if count < 0 {
+			_ = m.redis.Set(ctx, "online_users", 0, 0).Err()
+		}
+		logger.Info("WebSocket disconnected:", nickname)
+	}()
+
+	m.handleMessages(conn, nickname)
+}
+
+func (m *WSManager) authenticate(r *http.Request) (string, error) {
 	sessionIDCookie, err := r.Cookie("session_id")
 	if err != nil {
-		http.Error(w, "unauthorized (no session_id)", http.StatusUnauthorized)
-		return
+		return "", err
 	}
 	sessionID := sessionIDCookie.Value
 
@@ -48,37 +81,21 @@ func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	nickname, err := m.redis.Get(ctx, "session:"+sessionID).Result()
 	if err != nil {
 		logger.Warn("No nickname in Redis for session:", sessionID)
-		http.Error(w, "unauthorized (session not found)", http.StatusUnauthorized)
-		return
+		return "", err
 	}
 
+	return nickname, nil
+}
+
+func (m *WSManager) upgradeConnection(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		logger.Error("WebSocket upgrade failed:", err)
-		return
+		return nil, err
 	}
-	logger.Info("WebSocket connected:", nickname)
+	return conn, nil
+}
 
-	m.clients.Store(nickname, conn)
-
-	if err := m.redis.Incr(ctx, "online_users").Err(); err != nil {
-		logger.Warn("Failed to increment online_users:", err)
-	}
-
-	defer func() {
-		conn.Close()
-		m.clients.Delete(nickname)
-
-		count, err := m.redis.Decr(ctx, "online_users").Result()
-		if err != nil {
-			logger.Warn("failed to decrement online_users:", err)
-		} else if count < 0 {
-			_ = m.redis.Set(ctx, "online_users", 0, 0).Err()
-		}
-
-		logger.Info("WebSocket disconnected:", nickname)
-	}()
-
+func (m *WSManager) handleMessages(conn *websocket.Conn, nickname string) {
 	for {
 		_, data, err := conn.ReadMessage()
 		if err != nil {
@@ -94,162 +111,190 @@ func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		switch msgType {
-		case "find_match":
-			if err := m.matchmaker.HandleFindMatch(nickname); err != nil {
-				logger.Warn("Matchmaking error:", err)
-				_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
-			}
+		m.handleMessageType(conn, nickname, msgType, msg)
+	}
+}
 
-		case "cancel_match":
-			if err := m.matchmaker.HandleCancelMatch(nickname); err != nil {
-				logger.Warn("Cancel match error:", err)
-				_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
-			}
+func (m *WSManager) handleMessageType(conn *websocket.Conn, nickname, msgType string, msg map[string]interface{}) {
+	switch msgType {
+	case "find_match":
+		if err := m.matchmaker.HandleFindMatch(nickname); err != nil {
+			logger.Warn("Matchmaking error:", err)
+			_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+		}
+	case "cancel_match":
+		if err := m.matchmaker.HandleCancelMatch(nickname); err != nil {
+			logger.Warn("Cancel match error:", err)
+			_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+		}
+	case "request_rematch":
+		m.handleRequestRematch(nickname)
+	case "accept_rematch":
+		m.handleAcceptRematch(conn, nickname)
+	case "decline_rematch":
+		m.handleDeclineRematch(nickname)
+	case "rejoin_match":
+		m.handleRejoinMatch(conn, nickname)
+	case "forfeit":
+		m.handleForfeit(nickname)
+	case "move":
+		m.handleMove(conn, nickname, msg)
+	default:
+		logger.Warn("Unhandled message type:", msgType)
+	}
+}
 
-		case "request_rematch":
-			game, ok := m.gameManager.GetGame(nickname)
-			if !ok || !game.IsFinished {
-				break
-			}
-			opponent := game.PlayerO
-			if nickname == game.PlayerO {
-				opponent = game.PlayerX
-			}
+func (m *WSManager) handleRequestRematch(nickname string) {
+	game, ok := m.gameManager.GetGame(nickname)
+	if !ok || !game.IsFinished {
+		return
+	}
+	opponent := game.PlayerO
+	if nickname == game.PlayerO {
+		opponent = game.PlayerX
+	}
 
-			if nickname == game.PlayerX {
-				game.PlayAgainX = true
-			} else {
-				game.PlayAgainO = true
-			}
-			if game.RematchTimer == nil {
-				game.RematchTimer = time.AfterFunc(15*time.Second, func() {
-					if !game.PlayAgainX || !game.PlayAgainO {
-						if c, ok := m.clients.Load(nickname); ok {
-							c.(*websocket.Conn).WriteJSON(map[string]interface{}{"type": "rematch_declined"})
-						}
-						if c, ok := m.clients.Load(opponent); ok {
-							c.(*websocket.Conn).WriteJSON(map[string]interface{}{"type": "rematch_declined"})
-						}
-						m.gameManager.FinishGame(m.redis, nickname)
-					}
-				})
-			}
-			if c, ok := m.clients.Load(opponent); ok {
-				c.(*websocket.Conn).WriteJSON(map[string]interface{}{
-					"type":     "rematch_requested",
-					"opponent": nickname,
-				})
-			}
+	if nickname == game.PlayerX {
+		game.PlayAgainX = true
+	} else {
+		game.PlayAgainO = true
+	}
 
-		case "accept_rematch":
-			msg1, msg2, err := m.gameManager.HandlePlayAgain(nickname)
-			if err != nil {
-				logger.Warn("PlayAgain error:", err)
-				_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
-				break
-			}
-			if msg1 == nil || msg2 == nil {
-				break
-			}
-			if game, ok := m.gameManager.GetGame(nickname); ok && game.RematchTimer != nil {
-				game.RematchTimer.Stop()
-				game.RematchTimer = nil
-			}
-			game, _ := m.gameManager.GetGame(nickname)
-			var selfMsg, oppMsg map[string]interface{}
-			if nickname == game.PlayerX {
-				selfMsg, oppMsg = msg1, msg2
-			} else {
-				selfMsg, oppMsg = msg2, msg1
-			}
-			if c, ok := m.clients.Load(nickname); ok {
-				c.(*websocket.Conn).WriteJSON(selfMsg)
-			}
-			opponent := game.PlayerO
-			if nickname == game.PlayerO {
-				opponent = game.PlayerX
-			}
-			if c, ok := m.clients.Load(opponent); ok {
-				c.(*websocket.Conn).WriteJSON(oppMsg)
-			}
-
-		case "decline_rematch":
-			game, ok := m.gameManager.GetGame(nickname)
-			if !ok {
-				break
-			}
-			for _, p := range []string{game.PlayerX, game.PlayerO} {
-				if c, ok := m.clients.Load(p); ok {
-					c.(*websocket.Conn).WriteJSON(map[string]interface{}{
-						"type": "rematch_declined",
-					})
+	if game.RematchTimer == nil {
+		game.RematchTimer = time.AfterFunc(15*time.Second, func() {
+			if !game.PlayAgainX || !game.PlayAgainO {
+				if c, ok := m.clients.Load(nickname); ok {
+					c.(*websocket.Conn).WriteJSON(map[string]interface{}{"type": "rematch_declined"})
 				}
+				if c, ok := m.clients.Load(opponent); ok {
+					c.(*websocket.Conn).WriteJSON(map[string]interface{}{"type": "rematch_declined"})
+				}
+				m.gameManager.FinishGame(m.redis, nickname)
 			}
+		})
+	}
 
-		case "rejoin_match":
-			game, ok := m.gameManager.GetGame(nickname)
-			if !ok {
-				_ = conn.WriteJSON(map[string]string{"type": "error", "message": "no active game"})
-				conn.Close()
-				return
-			}
-			_ = conn.WriteJSON(map[string]interface{}{
-				"type":       "game_state",
-				"board":      game.Board,
-				"turn":       game.Turn,
-				"isFinished": game.IsFinished,
-				"winner":     game.Winner,
+	if c, ok := m.clients.Load(opponent); ok {
+		c.(*websocket.Conn).WriteJSON(map[string]interface{}{
+			"type":     "rematch_requested",
+			"opponent": nickname,
+		})
+	}
+}
+
+func (m *WSManager) handleAcceptRematch(conn *websocket.Conn, nickname string) {
+	msg1, msg2, err := m.gameManager.HandlePlayAgain(nickname)
+	if err != nil {
+		logger.Warn("PlayAgain error:", err)
+		_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+		return
+	}
+	if msg1 == nil || msg2 == nil {
+		return
+	}
+	game, _ := m.gameManager.GetGame(nickname)
+	if game.RematchTimer != nil {
+		game.RematchTimer.Stop()
+		game.RematchTimer = nil
+	}
+
+	var selfMsg, oppMsg map[string]interface{}
+	if nickname == game.PlayerX {
+		selfMsg, oppMsg = msg1, msg2
+	} else {
+		selfMsg, oppMsg = msg2, msg1
+	}
+
+	if c, ok := m.clients.Load(nickname); ok {
+		c.(*websocket.Conn).WriteJSON(selfMsg)
+	}
+	opponent := game.PlayerO
+	if nickname == game.PlayerO {
+		opponent = game.PlayerX
+	}
+	if c, ok := m.clients.Load(opponent); ok {
+		c.(*websocket.Conn).WriteJSON(oppMsg)
+	}
+}
+
+func (m *WSManager) handleDeclineRematch(nickname string) {
+	game, ok := m.gameManager.GetGame(nickname)
+	if !ok {
+		return
+	}
+	for _, p := range []string{game.PlayerX, game.PlayerO} {
+		if c, ok := m.clients.Load(p); ok {
+			c.(*websocket.Conn).WriteJSON(map[string]interface{}{
+				"type": "rematch_declined",
 			})
-		case "forfeit":
-			game, ok := m.gameManager.GetGame(nickname)
-			if ok && !game.IsFinished {
-				winner := game.PlayerO
-				if nickname == game.PlayerO {
-					winner = game.PlayerX
-				}
-				m.sendToGame(nickname, map[string]interface{}{
-					"type":   "game_over",
-					"result": winner,
-				})
-				game.IsFinished = true
-			}
-		case "move":
-			cell, ok := intFrom(msg["cell"])
-			if !ok {
-				conn.WriteJSON(map[string]string{"type": "error", "message": "invalid cell"})
-				break
-			}
-			moveMsg, resultMsg, err := m.gameManager.HandleMove(nickname, cell)
-			if err != nil {
-				conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
-				break
-			}
-			m.sendToGame(nickname, moveMsg)
-			if resultMsg != nil {
-				m.sendToGame(nickname, resultMsg)
-				if game, ok := m.gameManager.GetGame(nickname); ok {
-					game.IsFinished = true
-				}
-			} else {
-				if game, ok := m.gameManager.GetGame(nickname); ok {
-					boardFull := true
-					for _, cellVal := range game.Board {
-						if cellVal == "" {
-							boardFull = false
-							break
-						}
-					}
-					if boardFull {
-						drawMsg := map[string]interface{}{
-							"type":   "game_over",
-							"result": "draw",
-						}
-						m.sendToGame(nickname, drawMsg)
+		}
+	}
+}
 
-						game.IsFinished = true
-					}
+func (m *WSManager) handleRejoinMatch(conn *websocket.Conn, nickname string) {
+	game, ok := m.gameManager.GetGame(nickname)
+	if !ok {
+		_ = conn.WriteJSON(map[string]string{"type": "error", "message": "no active game"})
+		conn.Close()
+		return
+	}
+	_ = conn.WriteJSON(map[string]interface{}{
+		"type":       "game_state",
+		"board":      game.Board,
+		"turn":       game.Turn,
+		"isFinished": game.IsFinished,
+		"winner":     game.Winner,
+	})
+}
+
+func (m *WSManager) handleForfeit(nickname string) {
+	game, ok := m.gameManager.GetGame(nickname)
+	if ok && !game.IsFinished {
+		winner := game.PlayerO
+		if nickname == game.PlayerO {
+			winner = game.PlayerX
+		}
+		m.sendToGame(nickname, map[string]interface{}{
+			"type":   "game_over",
+			"result": winner,
+		})
+		game.IsFinished = true
+	}
+}
+
+func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[string]interface{}) {
+	cell, ok := intFrom(msg["cell"])
+	if !ok {
+		conn.WriteJSON(map[string]string{"type": "error", "message": "invalid cell"})
+		return
+	}
+	moveMsg, resultMsg, err := m.gameManager.HandleMove(nickname, cell)
+	if err != nil {
+		conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
+		return
+	}
+	m.sendToGame(nickname, moveMsg)
+	if resultMsg != nil {
+		m.sendToGame(nickname, resultMsg)
+		if game, ok := m.gameManager.GetGame(nickname); ok {
+			game.IsFinished = true
+		}
+	} else {
+		if game, ok := m.gameManager.GetGame(nickname); ok {
+			boardFull := true
+			for _, cellVal := range game.Board {
+				if cellVal == "" {
+					boardFull = false
+					break
 				}
+			}
+			if boardFull {
+				drawMsg := map[string]interface{}{
+					"type":   "game_over",
+					"result": "draw",
+				}
+				m.sendToGame(nickname, drawMsg)
+				game.IsFinished = true
 			}
 		}
 	}
