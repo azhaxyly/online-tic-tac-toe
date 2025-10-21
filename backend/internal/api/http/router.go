@@ -24,21 +24,38 @@ func NewRouter(sessionService *services.SessionService) *gin.Engine {
 		AllowCredentials: true,
 	}))
 
-	manager := ws.NewManager(sessionService.RDB)
+	// Создаем middleware
+	authMiddleware := AuthMiddleware(sessionService.RDB) // <-- НАШ MIDDLEWARE
 
+	manager := ws.NewManager(sessionService.RDB)
 	statsHandler := handlers.NewStatsHandler(sessionService.RDB)
 	sessionHandler := handlers.NewSessionHandler(sessionService, sessionService.RDB)
 	profileHandler := handlers.NewProfileHandler(sessionService.RDB)
 
-	router.GET("/ws", func(c *gin.Context) {
-		manager.HandleConnection(c.Writer, c.Request)
+	// Защищенный WebSocket
+	router.GET("/ws", authMiddleware, func(c *gin.Context) {
+		// Получаем nickname из контекста, установленного middleware
+		nickname, _ := c.Get("nickname")
+
+		// Передаем nickname в HandleConnection
+		manager.HandleConnection(c.Writer, c.Request, nickname.(string))
 	})
 
 	api := router.Group("/api")
 	{
-		api.GET("/nickname", sessionHandler.GetNickname)
+		// ПУБЛИЧНЫЕ маршруты для аутентификации
+		api.POST("/register", sessionHandler.Register)
+		api.POST("/login", sessionHandler.Login)
+		api.POST("/logout", sessionHandler.Logout)
+
+		// Общая статистика (оставим публичной)
 		api.GET("/stats", statsHandler.GetStats)
-		api.GET("/profile-stats", profileHandler.GetProfileStats)
+
+		// ЗАЩИЩЕННЫЕ маршруты
+		// Проверка текущей сессии
+		api.GET("/nickname", authMiddleware, sessionHandler.GetNickname)
+		// Статистика профиля
+		api.GET("/profile-stats", authMiddleware, profileHandler.GetProfileStats)
 	}
 
 	return router

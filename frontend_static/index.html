@@ -5,65 +5,89 @@
   <meta charset="UTF-8">
   <title>Tic-Tac-Toe</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
-    rel="stylesheet" />
+        rel="stylesheet" />
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" type="image/png" href="./assets/favicon.png">
 </head>
 
 <body>
-  <img src="./assets/left.gif" class="side-gif left">
-  <img src="./assets/right.gif" class="side-gif right">
-  <header>
-    <img src="./assets/title.png" alt="Tic-Tac-Toe Logo Text" class="logo-text">
-    <img src="./assets/game.png" alt="Tic-Tac-Toe Board" class="logo-board">
-  </header>
+<img src="./assets/left.gif" class="side-gif left">
+<img src="./assets/right.gif" class="side-gif right">
+<header>
+  <img src="./assets/title.png" alt="Tic-Tac-Toe Logo Text" class="logo-text">
+  <img src="./assets/game.png" alt="Tic-Tac-Toe Board" class="logo-board">
+</header>
 
-  <main>
-    <div id="nickname" class="nickname"></div>
-    <div id="stats" class="stats"></div>
+<main>
+  <div id="user-info" class="user-info hidden">
+    <span id="nickname" class="nickname"></span>
+    <button id="logout-btn">Logout</button>
+  </div>
 
-    <div id="menu" class="menu">
-      <button id="quick-game-btn">Quick Game</button>
-      <button id="offline-game-btn">Offline Game</button>
+  <div id="stats" class="stats hidden"></div>
+
+  <div id="auth-container" class="auth-container">
+    <form id="login-form" class="auth-form">
+      <h2>Login</h2>
+      <input type="text" id="login-nickname" placeholder="Nickname" required>
+      <input type="password" id="login-password" placeholder="Password" required>
+      <button type="submit">Login</button>
+      <p id="auth-error-login" class="auth-error"></p>
+      <a href="#" id="show-register-link" class="auth-toggle-link">Don't have an account? Register</a>
+    </form>
+
+    <form id="register-form" class="auth-form hidden">
+      <h2>Register</h2>
+      <input type="text" id="register-nickname" placeholder="Nickname (min 3 chars)" required>
+      <input type="password" id="register-password" placeholder="Password (min 6 chars)" required>
+      <button type="submit">Register</button>
+      <p id="auth-error-register" class="auth-error"></p>
+      <a href="#" id="show-login-link" class="auth-toggle-link">Already have an account? Login</a>
+    </form>
+  </div>
+
+  <div id="menu" class="menu hidden">
+    <button id="quick-game-btn">Quick Game</button>
+    <button id="offline-game-btn">Offline Game</button>
+  </div>
+
+  <button id="cancel-search-btn" class="hidden">Cancel</button>
+
+  <div id="game-start-screen" class="start-screen hidden">
+    <div class="start-half left"></div>
+    <div class="start-half right"></div>
+    <div id="game-start-text" class="start-text hidden">GET READY</div>
+  </div>
+
+  <div class="game-area">
+    <div id="game-board" class="board hidden"></div>
+
+    <div id="restart-menu" class="restart-menu hidden">
+      <button id="play-again-btn">Play Again</button>
+      <button id="back-to-main-btn">Back to Main</button>
     </div>
 
-    <button id="cancel-search-btn" class="hidden">Cancel</button>
-
-    <div id="game-start-screen" class="start-screen hidden">
-      <div class="start-half left"></div>
-      <div class="start-half right"></div>
-      <div id="game-start-text" class="start-text hidden">GET READY</div>
+    <div id="move-timer" class="move-timer hidden">
+      <div id="move-timer-progress" class="move-timer-progress"></div>
     </div>
 
-    <div class="game-area">
-      <div id="game-board" class="board hidden"></div>
-
-      <div id="restart-menu" class="restart-menu hidden">
-        <button id="play-again-btn">Play Again</button>
-        <button id="back-to-main-btn">Back to Main</button>
+    <div id="rematch-box" class="rematch-box hidden">
+      <p>Opponent wants a rematch. Accept?</p>
+      <div class="modal-buttons">
+        <button id="accept-rematch-btn">Accept</button>
+        <button id="decline-rematch-btn">Decline</button>
       </div>
-
-      <div id="move-timer" class="move-timer hidden">
-        <div id="move-timer-progress" class="move-timer-progress"></div>
-      </div>
-
-      <div id="rematch-box" class="rematch-box hidden">
-        <p>Opponent wants a rematch. Accept?</p>
-        <div class="modal-buttons">
-          <button id="accept-rematch-btn">Accept</button>
-          <button id="decline-rematch-btn">Decline</button>
-        </div>
-        <div class="timer-line">
-          <div class="timer-progress"></div>
-        </div>
+      <div class="timer-line">
+        <div class="timer-progress"></div>
       </div>
     </div>
+  </div>
 
-    <div id="game-status" class="game-status"></div>
-    <div id="game-score" class="game-score"></div>
-  </main>
+  <div id="game-status" class="game-status"></div>
+  <div id="game-score" class="game-score"></div>
+</main>
 
-  <script src="scripts.js" defer></script>
+<script src="scripts.js" defer></script>
 </body>
 
 </html>

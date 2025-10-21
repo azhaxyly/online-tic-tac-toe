@@ -35,13 +35,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
-	nickname, err := m.authenticate(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-
+func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request, nickname string) {
 	conn, err := m.upgradeConnection(w, r)
 	if err != nil {
 		logger.Error("WebSocket upgrade failed:", err)
@@ -67,23 +61,6 @@ func (m *WSManager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	m.handleMessages(conn, nickname)
-}
-
-func (m *WSManager) authenticate(r *http.Request) (string, error) {
-	sessionIDCookie, err := r.Cookie("session_id")
-	if err != nil {
-		return "", err
-	}
-	sessionID := sessionIDCookie.Value
-
-	ctx := context.Background()
-	nickname, err := m.redis.Get(ctx, "session:"+sessionID).Result()
-	if err != nil {
-		logger.Warn("No nickname in Redis for session:", sessionID)
-		return "", err
-	}
-
-	return nickname, nil
 }
 
 func (m *WSManager) upgradeConnection(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
@@ -228,6 +205,7 @@ func (m *WSManager) handleDeclineRematch(nickname string) {
 			})
 		}
 	}
+	m.gameManager.FinishGame(m.redis, nickname)
 }
 
 func (m *WSManager) handleRejoinMatch(conn *websocket.Conn, nickname string) {
@@ -258,6 +236,7 @@ func (m *WSManager) handleForfeit(nickname string) {
 			"result": winner,
 		})
 		game.IsFinished = true
+		m.gameManager.FinishGame(m.redis, nickname)
 	}
 }
 
@@ -278,6 +257,7 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 		if game, ok := m.gameManager.GetGame(nickname); ok {
 			game.IsFinished = true
 		}
+		m.gameManager.FinishGame(m.redis, nickname)
 	} else {
 		if game, ok := m.gameManager.GetGame(nickname); ok {
 			boardFull := true
@@ -294,6 +274,7 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 				}
 				m.sendToGame(nickname, drawMsg)
 				game.IsFinished = true
+				m.gameManager.FinishGame(m.redis, nickname)
 			}
 		}
 	}

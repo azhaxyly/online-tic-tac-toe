@@ -479,6 +479,84 @@ button:hover {
   padding: 8px 20px;
 }
 
+/* Стили для аутентификации */
+.auth-container {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.auth-form h2 {
+  margin-top: 0;
+  color: #fff;
+}
+
+.auth-form input[type="text"],
+.auth-form input[type="password"] {
+  font-family: 'Space Grotesk', sans-serif;
+  width: calc(100% - 20px);
+  padding: 10px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  border: 1px solid #555;
+  background: #222;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.auth-form button {
+  width: 100%;
+  padding: 12px;
+  font-size: 1.1rem;
+}
+
+.auth-error {
+  color: #ff4d4d;
+  margin-top: 10px;
+  min-height: 1.2em;
+}
+
+.auth-error.success {
+  color: #4dff4d;
+}
+
+.auth-toggle-link {
+  display: block;
+  margin-top: 15px;
+  color: #1e90ff;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.auth-toggle-link:hover {
+  text-decoration: underline;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: -10px; /* Компенсировать отступ .stats */
+}
+
+#logout-btn {
+  background: #555;
+  color: #fff;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+#logout-btn:hover {
+  background: #ff4d4d;
+  color: #fff;
+}
+
 .hidden {
   display: none;
 }

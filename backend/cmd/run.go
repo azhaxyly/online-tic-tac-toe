@@ -32,7 +32,7 @@ func Run() {
 		}
 	}()
 
-	sessionStore := store.NewSessionStore(db)
+	sessionStore := store.NewUserStore(db)
 	sessionService := services.NewSessionService(rdb, sessionStore)
 
 	router := http.NewRouter(sessionService)

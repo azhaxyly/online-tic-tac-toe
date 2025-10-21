@@ -19,24 +19,28 @@ func NewProfileHandler(rdb *redis.Client) *ProfileHandler {
 }
 
 func (h *ProfileHandler) GetProfileStats(c *gin.Context) {
-	sessionIDCookie, err := c.Request.Cookie("session_id")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized (no session_id)"})
+	// 1. Получаем nickname из контекста, который был установлен
+	//    в AuthMiddleware.
+	nicknameVal, exists := c.Get("nickname")
+	if !exists {
+		// Эта проверка - на всякий случай. Если middleware настроен правильно,
+		// "nickname" должен всегда существовать.
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	sessionID := sessionIDCookie.Value
 
+	nickname := nicknameVal.(string)
 	ctx := context.Background()
-	nickname, err := h.RDB.Get(ctx, "session:"+sessionID).Result()
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized (session not found)"})
-		return
-	}
 
+	// 2. Получаем статистику из Redis по ключам
+	//    Мы используем .Int() и игнорируем ошибку ( _ ).
+	//    Если ключ (например, "wins:nickname") не существует (redis.Nil),
+	//    .Int() вернет 0, что нам и нужно.
 	wins, _ := h.RDB.Get(ctx, "wins:"+nickname).Int()
 	losses, _ := h.RDB.Get(ctx, "losses:"+nickname).Int()
 	draws, _ := h.RDB.Get(ctx, "draws:"+nickname).Int()
 
+	// 3. Отправляем JSON-ответ
 	c.JSON(http.StatusOK, gin.H{
 		"wins":   wins,
 		"losses": losses,
