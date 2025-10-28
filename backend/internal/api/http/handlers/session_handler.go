@@ -77,7 +77,8 @@ func (h *SessionHandler) Login(c *gin.Context) {
 	}
 
 	// Устанавливаем cookie
-	c.SetCookie("session_id", sessionID, 3600*24, "/", "", false, true)
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie("session_id", sessionID, 3600*24, "/", "", true, true)
 	logger.Info("User logged in:", user.Nickname)
 	c.JSON(http.StatusOK, gin.H{"nickname": user.Nickname})
 }
@@ -91,7 +92,8 @@ func (h *SessionHandler) Logout(c *gin.Context) {
 	}
 
 	// Очищаем cookie
-	c.SetCookie("session_id", "", -1, "/", "", false, true)
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie("session_id", "", -1, "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
