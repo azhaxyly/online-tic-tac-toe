@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"tictactoe/config"
 	"tictactoe/internal/api/http"
 	"tictactoe/internal/cache"
@@ -36,9 +37,20 @@ func Run() {
 	sessionService := services.NewSessionService(rdb, sessionStore)
 
 	router := http.NewRouter(sessionService)
-	logger.Info("Starting HTTP server on port:", cfg.ServerPort)
 
-	if err := router.Run(":" + cfg.ServerPort); err != nil {
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = cfg.ServerPort
+	}
+
+	if port == "" {
+		port = "8080"
+	}
+
+	logger.Info("Starting HTTP server on port:", port)
+
+	if err := router.Run(":" + port); err != nil {
 		logger.Error("Failed to start server:", err)
 	}
 }
