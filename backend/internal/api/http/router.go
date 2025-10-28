@@ -2,6 +2,7 @@ package http
 
 import (
 	"io"
+	"os"
 
 	"tictactoe/internal/api/http/handlers"
 	"tictactoe/internal/api/ws"
@@ -17,8 +18,13 @@ func NewRouter(sessionService *services.SessionService) *gin.Engine {
 
 	router := gin.New()
 
+	allowedOrigin := os.Getenv("GIN_CORS_ALLOW_ORIGIN")
+	if allowedOrigin == "" {
+		allowedOrigin = "http://localhost:8080" // Для локальной разработки
+	}
+
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:8080"},
+		AllowOrigins:     []string{allowedOrigin}, // Используем переменную
 		AllowMethods:     []string{"GET", "POST"},
 		AllowHeaders:     []string{"Content-Type"},
 		AllowCredentials: true,

@@ -1,4 +1,6 @@
-// --- Глобальные переменные ---
+const BACKEND_HOST = 'online-tic-tac-toe-qsah.onrender.com';
+const API_URL = `https://${BACKEND_HOST}`;
+const WS_URL = `wss://${BACKEND_HOST}`;
 let board = Array(9).fill('');
 let currentPlayer = 'X';
 let gameMode = null;
@@ -81,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 async function checkLoginStatus() {
   try {
-    const res = await fetch('/api/nickname', { credentials: 'include' });
+    const res = await fetch(`${API_URL}/api/nickname`, { credentials: 'include' });
     if (!res.ok) {
       // Статус 401 или другой - значит, сессии нет
       throw new Error('Not logged in');
@@ -116,7 +118,7 @@ async function handleLogin(e) {
   const password = document.getElementById('login-password').value;
 
   try {
-    const res = await fetch('/api/login', {
+    const res = await fetch(`${API_URL}/api/login`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -148,7 +150,7 @@ async function handleRegister(e) {
   const password = document.getElementById('register-password').value;
 
   try {
-    const res = await fetch('/api/register', {
+    const res = await fetch(`${API_URL}/api/register`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -156,8 +158,16 @@ async function handleRegister(e) {
     });
 
     if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || 'Registration failed');
+      // Если ответ не-ОК, он может быть не JSON, например, ошибка 503 или 404
+      // Сначала проверим, что это JSON
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Registration failed');
+      } else {
+        // Если это не JSON, выводим текстовый статус
+        throw new Error(`Server error: ${res.statusText}`);
+      }
     }
 
     // В случае успеха показываем сообщение и переключаем на форму входа
@@ -168,7 +178,14 @@ async function handleRegister(e) {
     document.getElementById('login-password').focus();
 
   } catch (err) {
-    setAuthError(err.message, 'register');
+    // Эта ошибка "Unexpected end of JSON input" часто случается,
+    // если сервер падает (502) или возвращает HTML (404, 503)
+    console.error("Registration fetch failed:", err);
+    if (err.message.includes("JSON input")) {
+      setAuthError("Failed to communicate with server. Check CORS or server status.", 'register');
+    } else {
+      setAuthError(err.message, 'register');
+    }
   }
 }
 
@@ -176,7 +193,7 @@ async function handleRegister(e) {
  * Выполняет выход из системы, отправляя запрос на бэкенд и перезагружая страницу.
  */
 async function handleLogout() {
-  await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+  await fetch(`${API_URL}/api/logout`, { method: 'POST', credentials: 'include' });
   // Перезагрузка - самый простой и надежный способ сбросить все состояние
   window.location.reload();
 }
@@ -235,7 +252,7 @@ function showLoggedOutUI() {
 
 async function loadStats() {
   try {
-    const res = await fetch('/api/stats', { credentials: 'include' });
+    const res = await fetch(`${API_URL}/api/stats`, { credentials: 'include' });
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
         window.location.reload(); // Сессия истекла, перезагрузка покажет экран логина
@@ -322,7 +339,7 @@ async function startQuickGame() {
   hideSideGifs();
   updateStatus('Searching for opponent...');
 
-  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws = new WebSocket(`${WS_URL}/ws`);
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: 'find_match' }));
   };
@@ -524,7 +541,7 @@ function restoreOnlineGame(saved) {
   document.getElementById('restart-menu').classList.add('hidden');
   document.getElementById('game-board').classList.remove('hidden');
 
-  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws = new WebSocket(`${WS_URL}/ws`);
   ws.onopen = () => {
     console.log('WebSocket reconnected');
     ws.send(JSON.stringify({ type: 'rejoin_match' }));
