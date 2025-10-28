@@ -236,7 +236,7 @@ func (m *WSManager) handleForfeit(nickname string) {
 			"result": winner,
 		})
 		game.IsFinished = true
-		m.gameManager.FinishGame(m.redis, nickname)
+		//m.gameManager.FinishGame(m.redis, nickname)
 	}
 }
 
@@ -257,7 +257,7 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 		if game, ok := m.gameManager.GetGame(nickname); ok {
 			game.IsFinished = true
 		}
-		m.gameManager.FinishGame(m.redis, nickname)
+		//m.gameManager.FinishGame(m.redis, nickname)
 	} else {
 		if game, ok := m.gameManager.GetGame(nickname); ok {
 			boardFull := true
@@ -274,7 +274,7 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 				}
 				m.sendToGame(nickname, drawMsg)
 				game.IsFinished = true
-				m.gameManager.FinishGame(m.redis, nickname)
+				//m.gameManager.FinishGame(m.redis, nickname)
 			}
 		}
 	}
