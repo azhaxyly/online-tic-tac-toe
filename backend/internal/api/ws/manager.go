@@ -288,10 +288,10 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 				_ = conn.WriteJSON(drawMsg)
 				game.IsFinished = true
 			} else {
-				// Ход бота после небольшой задержки
-				time.AfterFunc(500*time.Millisecond, func() {
+				go func() {
+					time.Sleep(500 * time.Millisecond)
 					m.makeBotMove(nickname)
-				})
+				}()
 			}
 		}
 	} else {
