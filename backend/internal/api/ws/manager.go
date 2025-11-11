@@ -3,8 +3,10 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
+	"tictactoe/internal/models"
 	"time"
 
 	"tictactoe/internal/logger"
@@ -98,6 +100,13 @@ func (m *WSManager) handleMessageType(conn *websocket.Conn, nickname, msgType st
 			logger.Warn("Matchmaking error:", err)
 			_ = conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
 		}
+	case "find_bot_match":
+		difficulty, ok := msg["difficulty"].(string)
+		if !ok {
+			_ = conn.WriteJSON(map[string]string{"type": "error", "message": "invalid difficulty"})
+			return
+		}
+		m.handleFindBotMatch(conn, nickname, models.BotDifficulty(difficulty))
 	case "cancel_match":
 		if err := m.matchmaker.HandleCancelMatch(nickname); err != nil {
 			logger.Warn("Cancel match error:", err)
@@ -246,20 +255,52 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 		conn.WriteJSON(map[string]string{"type": "error", "message": "invalid cell"})
 		return
 	}
+
 	moveMsg, resultMsg, err := m.gameManager.HandleMove(nickname, cell)
 	if err != nil {
 		conn.WriteJSON(map[string]string{"type": "error", "message": err.Error()})
 		return
 	}
-	m.sendToGame(nickname, moveMsg)
-	if resultMsg != nil {
-		m.sendToGame(nickname, resultMsg)
-		if game, ok := m.gameManager.GetGame(nickname); ok {
+
+	game, _ := m.gameManager.GetGame(nickname)
+
+	// Для игры с ботом отправляем только игроку
+	if game.IsBotGame {
+		_ = conn.WriteJSON(moveMsg)
+
+		if resultMsg != nil {
+			_ = conn.WriteJSON(resultMsg)
 			game.IsFinished = true
+		} else {
+			// Проверяем ничью
+			boardFull := true
+			for _, cellVal := range game.Board {
+				if cellVal == "" {
+					boardFull = false
+					break
+				}
+			}
+			if boardFull {
+				drawMsg := map[string]interface{}{
+					"type":   "game_over",
+					"result": "draw",
+				}
+				_ = conn.WriteJSON(drawMsg)
+				game.IsFinished = true
+			} else {
+				// Ход бота после небольшой задержки
+				time.AfterFunc(500*time.Millisecond, func() {
+					m.makeBotMove(nickname)
+				})
+			}
 		}
-		//m.gameManager.FinishGame(m.redis, nickname)
 	} else {
-		if game, ok := m.gameManager.GetGame(nickname); ok {
+		// Оригинальная логика для PvP
+		m.sendToGame(nickname, moveMsg)
+		if resultMsg != nil {
+			m.sendToGame(nickname, resultMsg)
+			game.IsFinished = true
+		} else {
 			boardFull := true
 			for _, cellVal := range game.Board {
 				if cellVal == "" {
@@ -274,7 +315,6 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 				}
 				m.sendToGame(nickname, drawMsg)
 				game.IsFinished = true
-				//m.gameManager.FinishGame(m.redis, nickname)
 			}
 		}
 	}
@@ -296,4 +336,90 @@ func (m *WSManager) sendToGame(sender string, msg any) {
 func intFrom(v interface{}) (int, bool) {
 	f, ok := v.(float64)
 	return int(f), ok
+}
+
+func (m *WSManager) handleFindBotMatch(conn *websocket.Conn, nickname string, difficulty models.BotDifficulty) {
+	// Проверяем валидность сложности
+	if difficulty != models.DifficultyEasy &&
+		difficulty != models.DifficultyMedium &&
+		difficulty != models.DifficultyHard {
+		_ = conn.WriteJSON(map[string]string{"type": "error", "message": "invalid difficulty"})
+		return
+	}
+
+	// Создаем игру с ботом
+	playerSymbol := m.gameManager.CreateBotGame(nickname, difficulty)
+	botName := fmt.Sprintf("Bot_%s", difficulty)
+
+	ctx := context.Background()
+	if err := m.redis.Incr(ctx, "active_games").Err(); err != nil {
+		logger.Warn("failed to increment active_games:", err)
+	}
+
+	// Отправляем подтверждение игроку
+	_ = conn.WriteJSON(map[string]interface{}{
+		"type":       "match_found",
+		"symbol":     playerSymbol,
+		"opponent":   botName,
+		"isBot":      true,
+		"difficulty": string(difficulty),
+	})
+
+	// Если бот ходит первым, делаем его ход
+	if playerSymbol == "O" {
+		time.AfterFunc(500*time.Millisecond, func() {
+			m.makeBotMove(nickname)
+		})
+	}
+}
+
+// NEW: Ход бота
+func (m *WSManager) makeBotMove(nickname string) {
+	game, ok := m.gameManager.GetGame(nickname)
+	if !ok || !game.IsBotGame || game.IsFinished {
+		return
+	}
+
+	// Получаем ход от AI
+	botService := services.NewBotService()
+	cell := botService.GetBotMove(game.Board, game.BotDifficulty, game.BotSymbol)
+
+	if cell == -1 {
+		return
+	}
+
+	// Выполняем ход
+	moveMsg, resultMsg, err := m.gameManager.HandleMove(nickname, cell)
+	if err != nil {
+		logger.Warn("Bot move error:", err)
+		return
+	}
+
+	// Отправляем результат игроку
+	if c, ok := m.clients.Load(nickname); ok {
+		conn := c.(*websocket.Conn)
+		_ = conn.WriteJSON(moveMsg)
+
+		if resultMsg != nil {
+			_ = conn.WriteJSON(resultMsg)
+			game.IsFinished = true
+		} else {
+			// Проверяем ничью
+			boardFull := true
+			for _, cellVal := range game.Board {
+				if cellVal == "" {
+					boardFull = false
+					break
+				}
+			}
+			if boardFull {
+				drawMsg := map[string]interface{}{
+					"type":   "game_over",
+					"result": "draw",
+				}
+				_ = conn.WriteJSON(drawMsg)
+				game.IsFinished = true
+			}
+		}
+	}
 }

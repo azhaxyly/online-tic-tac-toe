@@ -229,3 +229,61 @@ func checkWin(board [9]string) (string, []int) {
 
 	return "", nil
 }
+
+func (g *GameManager) CreateBotGame(player string, difficulty models.BotDifficulty) string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	// Случайно определяем, кто ходит первым
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	playerSymbol := "X"
+	botSymbol := "O"
+
+	if r.Intn(2) == 1 {
+		playerSymbol = "O"
+		botSymbol = "X"
+	}
+
+	botName := fmt.Sprintf("Bot_%s", difficulty)
+
+	var playerX, playerO string
+	if playerSymbol == "X" {
+		playerX = player
+		playerO = botName
+	} else {
+		playerX = botName
+		playerO = player
+	}
+
+	game := &models.Game{
+		PlayerX:       playerX,
+		PlayerO:       playerO,
+		Turn:          "X",
+		Board:         [9]string{},
+		IsFinished:    false,
+		IsBotGame:     true,
+		BotDifficulty: difficulty,
+		BotSymbol:     botSymbol,
+	}
+
+	g.games[player] = game
+
+	return playerSymbol
+}
+
+func (g *GameManager) IsBotTurn(nickname string) bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	game, ok := g.games[nickname]
+	if !ok || !game.IsBotGame {
+		return false
+	}
+
+	// Проверяем, чей сейчас ход
+	if game.Turn == game.BotSymbol {
+		return true
+	}
+
+	return false
+}

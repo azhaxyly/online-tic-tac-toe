@@ -18,17 +18,15 @@ let moveDeadline = null;
 const MOVE_TIMEOUT = 15;
 const REMATCH_DURATION = 15;
 
-// ID для интервала, чтобы его можно было остановить при выходе
 let statsInterval = null;
 
-// Переменные для хранения DOM элементов для производительности
+// DOM элементы
 let authContainer, loginForm, registerForm, showRegisterLink, showLoginLink, authErrorLogin, authErrorRegister;
 let userInfoDiv, nicknameSpan, logoutBtn, statsDiv, menuDiv;
 
-
 // --- Инициализация приложения ---
 document.addEventListener('DOMContentLoaded', () => {
-  // Находим все необходимые DOM элементы один раз при загрузке
+  // Кэшируем DOM элементы
   authContainer = document.getElementById('auth-container');
   loginForm = document.getElementById('login-form');
   registerForm = document.getElementById('register-form');
@@ -43,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
   statsDiv = document.getElementById('stats');
   menuDiv = document.getElementById('menu');
 
-  // Устанавливаем обработчики событий для форм и ссылок аутентификации
+  // Обработчики форм
   loginForm.addEventListener('submit', handleLogin);
   registerForm.addEventListener('submit', handleRegister);
   logoutBtn.addEventListener('click', handleLogout);
@@ -62,60 +60,58 @@ document.addEventListener('DOMContentLoaded', () => {
     setAuthError('', 'register');
   });
 
-  // Устанавливаем обработчики для кнопок игры
+  // Обработчики кнопок игры
   document.getElementById('quick-game-btn').addEventListener('click', startQuickGame);
   document.getElementById('offline-game-btn').addEventListener('click', startOfflineGame);
+  document.getElementById('bot-game-btn').addEventListener('click', showBotMenu);
+  document.getElementById('back-from-bot-btn').addEventListener('click', hideBotMenu);
   document.getElementById('play-again-btn').addEventListener('click', playAgain);
   document.getElementById('back-to-main-btn').addEventListener('click', backToMain);
   document.getElementById('cancel-search-btn').addEventListener('click', cancelSearch);
 
-  // --- ГЛАВНАЯ ТОЧКА ВХОДА ---
-  // Проверяем, вошел ли пользователь в систему
+  document.querySelectorAll('.difficulty-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const difficulty = card.dataset.difficulty;
+      startBotGame(difficulty);
+    });
+  });
+
   checkLoginStatus();
 });
 
+// --- Функции аутентификации ---
 
-// --- Функции аутентификации и управления UI ---
-
-/**
- * Проверяет, есть ли у пользователя активная сессия на бэкенде.
- * В зависимости от результата, показывает либо формы входа, либо игровое меню.
- */
 async function checkLoginStatus() {
   try {
     const res = await fetch(`${API_URL}/api/nickname`, { credentials: 'include' });
     if (!res.ok) {
-      // Статус 401 или другой - значит, сессии нет
       throw new Error('Not logged in');
     }
     const data = await res.json();
-
-    // Пользователь аутентифицирован
     showAuthenticatedUI(data.nickname);
 
-    // Проверяем, нужно ли восстанавливать прерванную онлайн-игру
+    // Восстановление прерванной онлайн-игры
     const saved = JSON.parse(localStorage.getItem('savedGame'));
     if (saved && saved.gameMode === 'online') {
       console.log('Restoring saved online game...');
       restoreOnlineGame(saved);
     }
-
   } catch (err) {
-    // Пользователь не аутентифицирован
     showLoggedOutUI();
   }
 }
 
-/**
- * Обрабатывает отправку формы входа.
- * @param {Event} e - Событие отправки формы.
- */
 async function handleLogin(e) {
   e.preventDefault();
-  setAuthError('', 'login'); // Очищаем предыдущие ошибки
+  setAuthError('', 'login');
 
-  const nickname = document.getElementById('login-nickname').value;
+  const nickname = document.getElementById('login-nickname').value.trim();
   const password = document.getElementById('login-password').value;
+
+  if (!nickname || !password) {
+    setAuthError('Please fill in all fields', 'login');
+    return;
+  }
 
   try {
     const res = await fetch(`${API_URL}/api/login`, {
@@ -132,22 +128,32 @@ async function handleLogin(e) {
 
     const data = await res.json();
     showAuthenticatedUI(data.nickname);
-
   } catch (err) {
     setAuthError(err.message, 'login');
   }
 }
 
-/**
- * Обрабатывает отправку формы регистрации.
- * @param {Event} e - Событие отправки формы.
- */
 async function handleRegister(e) {
   e.preventDefault();
   setAuthError('', 'register');
 
-  const nickname = document.getElementById('register-nickname').value;
+  const nickname = document.getElementById('register-nickname').value.trim();
   const password = document.getElementById('register-password').value;
+
+  if (!nickname || !password) {
+    setAuthError('Please fill in all fields', 'register');
+    return;
+  }
+
+  if (nickname.length < 3) {
+    setAuthError('Nickname must be at least 3 characters', 'register');
+    return;
+  }
+
+  if (password.length < 6) {
+    setAuthError('Password must be at least 6 characters', 'register');
+    return;
+  }
 
   try {
     const res = await fetch(`${API_URL}/api/register`, {
@@ -158,65 +164,47 @@ async function handleRegister(e) {
     });
 
     if (!res.ok) {
-      // Если ответ не-ОК, он может быть не JSON, например, ошибка 503 или 404
-      // Сначала проверим, что это JSON
       const contentType = res.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") !== -1) {
+      if (contentType && contentType.includes("application/json")) {
         const errData = await res.json();
         throw new Error(errData.error || 'Registration failed');
       } else {
-        // Если это не JSON, выводим текстовый статус
         throw new Error(`Server error: ${res.statusText}`);
       }
     }
 
-    // В случае успеха показываем сообщение и переключаем на форму входа
     setAuthError('Registration successful! Please log in.', 'register', 'success');
     registerForm.classList.add('hidden');
     loginForm.classList.remove('hidden');
-    document.getElementById('login-nickname').value = nickname; // Для удобства
+    document.getElementById('login-nickname').value = nickname;
     document.getElementById('login-password').focus();
-
   } catch (err) {
-    // Эта ошибка "Unexpected end of JSON input" часто случается,
-    // если сервер падает (502) или возвращает HTML (404, 503)
-    console.error("Registration fetch failed:", err);
-    if (err.message.includes("JSON input")) {
-      setAuthError("Failed to communicate with server. Check CORS or server status.", 'register');
+    console.error("Registration failed:", err);
+    if (err.message.includes("JSON")) {
+      setAuthError("Failed to communicate with server. Check your connection.", 'register');
     } else {
       setAuthError(err.message, 'register');
     }
   }
 }
 
-/**
- * Выполняет выход из системы, отправляя запрос на бэкенд и перезагружая страницу.
- */
 async function handleLogout() {
-  await fetch(`${API_URL}/api/logout`, { method: 'POST', credentials: 'include' });
-  // Перезагрузка - самый простой и надежный способ сбросить все состояние
+  try {
+    await fetch(`${API_URL}/api/logout`, { method: 'POST', credentials: 'include' });
+  } catch (err) {
+    console.error('Logout error:', err);
+  }
   window.location.reload();
 }
 
-/**
- * Устанавливает текст ошибки (или успеха) для формы.
- * @param {string} message - Сообщение для отображения.
- * @param {'login'|'register'} formType - Тип формы.
- * @param {'error'|'success'} type - Класс для стилизации.
- */
 function setAuthError(message, formType, type = 'error') {
   const el = (formType === 'login') ? authErrorLogin : authErrorRegister;
   el.textContent = message;
   el.className = `auth-error ${type}`;
 }
 
-/**
- * Настраивает UI для аутентифицированного пользователя.
- * @param {string} nickname - Имя пользователя для отображения.
- */
 function showAuthenticatedUI(nickname) {
   authContainer.classList.add('hidden');
-
   userInfoDiv.classList.remove('hidden');
   nicknameSpan.textContent = `Hello, ${nickname}!`;
   statsDiv.classList.remove('hidden');
@@ -226,12 +214,9 @@ function showAuthenticatedUI(nickname) {
   loadStats();
   statsInterval = setInterval(loadStats, 60000);
 
-  renderBoard(); // Инициализируем доску для оффлайн-игры
+  renderBoard();
 }
 
-/**
- * Настраивает UI для неаутентифицированного пользователя (показывает формы).
- */
 function showLoggedOutUI() {
   userInfoDiv.classList.add('hidden');
   statsDiv.classList.add('hidden');
@@ -247,15 +232,14 @@ function showLoggedOutUI() {
   if (statsInterval) clearInterval(statsInterval);
 }
 
-
-// --- Существующая логика игры (с небольшими изменениями) ---
+// --- Логика игры ---
 
 async function loadStats() {
   try {
     const res = await fetch(`${API_URL}/api/stats`, { credentials: 'include' });
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
-        window.location.reload(); // Сессия истекла, перезагрузка покажет экран логина
+        window.location.reload();
       }
       throw new Error('Failed to fetch stats');
     }
@@ -299,6 +283,8 @@ function renderBoard() {
       });
       boardDiv.appendChild(cellDiv);
     }
+
+    // Добавляем линии сетки
     const vLine1 = document.createElement('div');
     vLine1.classList.add('vertical-line');
     const vLine2 = document.createElement('div');
@@ -318,13 +304,12 @@ function renderBoard() {
     const cellDiv = cells[idx];
     const preview = cellDiv.querySelector('.preview');
     if (preview) preview.remove();
+
     if (cell && !cellDiv.querySelector('span:not(.preview)')) {
       const markSpan = document.createElement('span');
       markSpan.classList.add(cell === 'X' ? 'x' : 'o');
       cellDiv.appendChild(markSpan);
-      setTimeout(() => {
-        cellDiv.classList.add('show');
-      }, 10);
+      setTimeout(() => cellDiv.classList.add('show'), 10);
     }
   });
 }
@@ -362,6 +347,37 @@ function startOfflineGame() {
   showStartScreen();
 }
 
+function showBotMenu() {
+  menuDiv.classList.add('hidden');
+  document.getElementById('bot-menu').classList.remove('hidden');
+}
+
+function hideBotMenu() {
+  document.getElementById('bot-menu').classList.add('hidden');
+  menuDiv.classList.remove('hidden');
+}
+
+function startBotGame(difficulty) {
+  gameMode = 'online';
+  document.querySelector('header').classList.add('hidden');
+  userInfoDiv.classList.add('hidden');
+  statsDiv.classList.add('hidden');
+  document.getElementById('bot-menu').classList.add('hidden');
+  document.getElementById('cancel-search-btn').classList.add('hidden');
+  hideSideGifs();
+
+  updateStatus(`Starting game vs Bot (${difficulty})...`);
+
+  ws = new WebSocket(`${WS_URL}/ws`);
+  ws.onopen = () => {
+    ws.send(JSON.stringify({
+      type: 'find_bot_match',
+      difficulty: difficulty
+    }));
+  };
+  setupWebSocketHandlers();
+}
+
 function handleCellClick(idx) {
   if (board[idx] || !document.getElementById('restart-menu').classList.contains('hidden')) return;
 
@@ -383,7 +399,7 @@ function handleCellClick(idx) {
   }
 
   if (gameMode === 'online') {
-    if (!ws || mySymbol !== currentTurn) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN || mySymbol !== currentTurn) return;
     board[idx] = mySymbol;
     renderBoard();
     localStorage.setItem('savedGame', JSON.stringify({ gameMode, mySymbol, opponentSymbol, board }));
@@ -463,8 +479,24 @@ function playAgain() {
 function backToMain() {
   hasRematched = false;
   clearInterval(rematchTimerId);
-  window.location.href = '/';
+
+  document.querySelector('header').classList.remove('hidden');
+  userInfoDiv.classList.remove('hidden');
+  statsDiv.classList.remove('hidden');
+  menuDiv.classList.remove('hidden');
+
+  document.getElementById('bot-menu').classList.add('hidden');
+  document.getElementById('game-board').classList.add('hidden');
+  document.getElementById('restart-menu').classList.add('hidden');
+  document.getElementById('cancel-search-btn').classList.add('hidden');
+
   showSideGifs();
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.close();
+  }
+
+  localStorage.removeItem('savedGame');
 }
 
 function cancelSearch() {
@@ -487,30 +519,41 @@ function showRematchDialog() {
   const prog = box.querySelector('.timer-progress');
   prog.style.width = '100%';
   prog.classList.remove('blink');
+
   let remaining = REMATCH_DURATION;
   clearInterval(rematchTimerId);
+
   rematchTimerId = setInterval(() => {
     remaining--;
     const pct = (remaining / REMATCH_DURATION) * 100;
     prog.style.width = pct + '%';
+
     if (remaining <= 5) {
       prog.classList.add('blink');
     }
+
     if (remaining <= 0) {
       clearInterval(rematchTimerId);
       box.classList.add('hidden');
       backToMain();
     }
   }, 1000);
+
   const acceptBtn = document.getElementById('accept-rematch-btn');
   const declineBtn = document.getElementById('decline-rematch-btn');
+
   acceptBtn.onclick = () => {
-    ws.send(JSON.stringify({ type: 'accept_rematch' }));
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'accept_rematch' }));
+    }
     clearInterval(rematchTimerId);
     box.classList.add('hidden');
   };
+
   declineBtn.onclick = () => {
-    ws.send(JSON.stringify({ type: 'decline_rematch' }));
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'decline_rematch' }));
+    }
     clearInterval(rematchTimerId);
     box.classList.add('hidden');
   };
@@ -533,6 +576,8 @@ function restoreOnlineGame(saved) {
   gameMode = 'online';
   mySymbol = saved.mySymbol;
   opponentSymbol = saved.opponentSymbol;
+  board = saved.board || Array(9).fill('');
+
   document.querySelector('header').classList.add('hidden');
   userInfoDiv.classList.add('hidden');
   statsDiv.classList.add('hidden');
@@ -547,6 +592,7 @@ function restoreOnlineGame(saved) {
     ws.send(JSON.stringify({ type: 'rejoin_match' }));
   };
   setupWebSocketHandlers();
+
   const stored = parseInt(localStorage.getItem('moveDeadline'), 10);
   if (stored) {
     const now = Date.now();
@@ -561,18 +607,14 @@ function showStartScreen() {
   const screen = document.getElementById('game-start-screen');
   const text = document.getElementById('game-start-text');
   const board = document.getElementById('game-board');
+
   screen.classList.remove('hidden');
   text.classList.remove('hidden');
   board.classList.add('hidden');
-  setTimeout(() => {
-    screen.classList.add('show');
-  }, 100);
-  setTimeout(() => {
-    text.classList.add('show');
-  }, 2000);
-  setTimeout(() => {
-    text.textContent = "GO!";
-  }, 3200);
+
+  setTimeout(() => screen.classList.add('show'), 100);
+  setTimeout(() => text.classList.add('show'), 2000);
+  setTimeout(() => text.textContent = "GO!", 3200);
   setTimeout(() => {
     screen.classList.add('fade-out');
     text.classList.remove('show');
@@ -598,15 +640,13 @@ function setupWebSocketHandlers() {
   ws.onclose = () => {
     console.log('WebSocket closed');
     stopMoveTimer();
+
     const saved = localStorage.getItem('savedGame');
-    if (gameMode === 'online' && !saved) {
-      // Обычное закрытие, когда не в игре
-    } else if (saved) {
-      // Закрытие во время попытки переподключения (вероятно, 401 Unauthorized)
+    if (saved) {
       localStorage.removeItem('savedGame');
       showLoggedOutUI();
       setAuthError("Session expired. Please log in again.", 'login');
-    } else {
+    } else if (gameMode === 'online') {
       updateStatus('Disconnected from server');
     }
   };
@@ -620,6 +660,7 @@ function setupWebSocketHandlers() {
         board = msg.board;
         renderBoard();
         currentTurn = msg.turn;
+
         if (msg.isFinished) {
           updateStatus(msg.winner ? `${msg.winner} wins!` : 'Draw!');
           endGame();
@@ -627,90 +668,131 @@ function setupWebSocketHandlers() {
           stopMoveTimer();
         } else {
           updateStatus(currentTurn === mySymbol ? "Your turn" : "Opponent's turn");
+
           if (currentTurn === mySymbol) {
             const stored = parseInt(localStorage.getItem('moveDeadline'), 10);
             const now = Date.now();
-            if (stored && stored > now) startMoveTimer((stored - now) / 1000);
-            else if (stored && stored <= now) handleMoveTimeout();
-            else startMoveTimer();
+            if (stored && stored > now) {
+              startMoveTimer((stored - now) / 1000);
+            } else if (stored && stored <= now) {
+              handleMoveTimeout();
+            } else {
+              startMoveTimer();
+            }
           } else {
             stopMoveTimer();
           }
         }
         break;
       }
+
       case 'match_found': {
         mySymbol = msg.symbol;
         opponentSymbol = mySymbol === 'X' ? 'O' : 'X';
         currentTurn = 'X';
         document.getElementById('cancel-search-btn').classList.add('hidden');
         showStartScreen();
+
         setTimeout(() => {
           document.getElementById('game-board').classList.remove('hidden');
           board = Array(9).fill('');
           renderBoard();
           updateStatus(`Matched! You are '${mySymbol}'`);
-          localStorage.setItem('savedGame', JSON.stringify({ gameMode: 'online', mySymbol, opponentSymbol, board }));
-          if (currentTurn === mySymbol) startMoveTimer();
+          localStorage.setItem('savedGame', JSON.stringify({
+            gameMode: 'online',
+            mySymbol,
+            opponentSymbol,
+            board
+          }));
+
+          if (currentTurn === mySymbol) {
+            startMoveTimer();
+          }
         }, 4300);
         break;
       }
+
       case 'move_made': {
         board[msg.cell] = msg.by;
         renderBoard();
         currentTurn = msg.by === 'X' ? 'O' : 'X';
-        localStorage.setItem('savedGame', JSON.stringify({ gameMode, mySymbol, opponentSymbol, board }));
+        localStorage.setItem('savedGame', JSON.stringify({
+          gameMode,
+          mySymbol,
+          opponentSymbol,
+          board
+        }));
         updateStatus(currentTurn === mySymbol ? "Your turn" : "Opponent's turn");
+
         if (currentTurn === mySymbol) {
           const stored = parseInt(localStorage.getItem('moveDeadline'), 10);
           const now = Date.now();
-          if (stored && stored > now) startMoveTimer((stored - now) / 1000);
-          else if (stored && stored <= now) handleMoveTimeout();
-          else startMoveTimer();
+          if (stored && stored > now) {
+            startMoveTimer((stored - now) / 1000);
+          } else if (stored && stored <= now) {
+            handleMoveTimeout();
+          } else {
+            startMoveTimer();
+          }
         } else {
           stopMoveTimer();
         }
         break;
       }
+
       case 'game_over': {
         updateStatus(msg.result === 'draw' ? "Draw!" : `${msg.result === mySymbol ? 'You win' : 'You lose'}!`);
-        if (msg.result === 'draw') draws++;
-        else if (msg.result === mySymbol) wins++;
-        else losses++;
+
+        if (msg.result === 'draw') {
+          draws++;
+        } else if (msg.result === mySymbol) {
+          wins++;
+        } else {
+          losses++;
+        }
+
         updateScore();
         endGame();
-        setTimeout(() => {
-          if (msg.result !== 'draw' && msg.winningPattern) {
-            highlightWinningCells(msg.winningPattern);
-          }
-        }, 200);
+
+        if (msg.result !== 'draw' && msg.winningPattern) {
+          setTimeout(() => highlightWinningCells(msg.winningPattern), 200);
+        }
+
         localStorage.removeItem('savedGame');
         stopMoveTimer();
         break;
       }
+
       case 'opponent_left': {
         updateStatus("Opponent disconnected!");
         endGame();
         stopMoveTimer();
         break;
       }
+
       case 'rematch_requested':
         showRematchDialog();
         break;
+
       case 'rematch':
         hasRematched = true;
         mySymbol = msg.symbol;
         opponentSymbol = msg.opponent;
         currentTurn = 'X';
         startNewGame();
-        if (currentTurn === mySymbol) startMoveTimer();
+
+        if (currentTurn === mySymbol) {
+          startMoveTimer();
+        }
         break;
+
       case 'rematch_declined':
         if (!hasRematched) {
           updateStatus('Opponent declined rematch.');
           setTimeout(backToMain, 3000);
         }
         break;
+
       case 'error':
         if (msg.message === 'no active game') {
           localStorage.removeItem('savedGame');
@@ -719,6 +801,7 @@ function setupWebSocketHandlers() {
           console.error('Server error:', msg.message);
         }
         break;
+
       default:
         console.warn('Unhandled message type:', msg.type);
     }
@@ -729,13 +812,18 @@ function startMoveTimer(seconds = MOVE_TIMEOUT) {
   const bar = document.getElementById('move-timer');
   const prog = document.getElementById('move-timer-progress');
   const now = Date.now();
+
   moveDeadline = now + seconds * 1000;
-  localStorage.setItem('moveDeadline', moveDeadline);
+  localStorage.setItem('moveDeadline', moveDeadline.toString());
+
   bar.classList.remove('hidden');
   prog.classList.remove('blink-slow', 'blink-med', 'blink-fast');
+
   clearInterval(moveTimerInterval);
+
   moveTimerInterval = setInterval(() => {
     const remainingMs = moveDeadline - Date.now();
+
     if (remainingMs <= 0) {
       clearInterval(moveTimerInterval);
       bar.classList.add('hidden');
@@ -746,9 +834,14 @@ function startMoveTimer(seconds = MOVE_TIMEOUT) {
       const pct = (remainingMs / (MOVE_TIMEOUT * 1000)) * 100;
       prog.style.width = `${pct}%`;
       prog.classList.remove('blink-slow', 'blink-med', 'blink-fast');
-      if (remainingMs <= 1000) prog.classList.add('blink-fast');
-      else if (remainingMs <= 3000) prog.classList.add('blink-med');
-      else if (remainingMs <= 5000) prog.classList.add('blink-slow');
+
+      if (remainingMs <= 1000) {
+        prog.classList.add('blink-fast');
+      } else if (remainingMs <= 3000) {
+        prog.classList.add('blink-med');
+      } else if (remainingMs <= 5000) {
+        prog.classList.add('blink-slow');
+      }
     }
   }, 100);
 }
