@@ -376,6 +376,8 @@ function hideBotMenu() {
 function startBotGame(difficulty) {
   gameMode = 'online';
 
+  localStorage.removeItem('savedGame');
+
   // clear board
   board = Array(9).fill('');
   const boardDiv = document.getElementById('game-board');
@@ -506,6 +508,8 @@ function backToMain() {
   hasRematched = false;
   clearInterval(rematchTimerId);
 
+  localStorage.removeItem('savedGame');
+
   document.querySelector('header').classList.remove('hidden');
   userInfoDiv.classList.remove('hidden');
   statsDiv.classList.remove('hidden');
@@ -599,6 +603,11 @@ function startNewGame() {
 }
 
 function restoreOnlineGame(saved) {
+  if (!saved || !saved.mySymbol || !saved.opponentSymbol) {
+    console.log('Invalid saved game data, clearing...');
+    localStorage.removeItem('savedGame');
+    return;
+  }
   gameMode = 'online';
   mySymbol = saved.mySymbol;
   opponentSymbol = saved.opponentSymbol;
