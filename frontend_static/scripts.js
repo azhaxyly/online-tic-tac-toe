@@ -342,6 +342,17 @@ async function startQuickGame() {
 
 function startOfflineGame() {
   gameMode = 'offline';
+  board = Array(9).fill('');
+  currentPlayer = 'X';
+  mySymbol = 'X';
+  opponentSymbol = 'O';
+
+  const boardDiv = document.getElementById('game-board');
+  const cells = boardDiv.querySelectorAll('.cell');
+  cells.forEach(cell => {
+    cell.innerHTML = '';
+    cell.classList.remove('show', 'highlight', 'dim');
+  });
   document.querySelector('header').classList.add('hidden');
   userInfoDiv.classList.add('hidden');
   statsDiv.classList.add('hidden');
@@ -349,10 +360,6 @@ function startOfflineGame() {
   document.getElementById('game-board').classList.remove('hidden');
   hideSideGifs();
 
-  board = Array(9).fill('');
-  currentPlayer = 'X';
-  mySymbol = 'X';
-  opponentSymbol = 'O';
   showStartScreen();
 }
 
