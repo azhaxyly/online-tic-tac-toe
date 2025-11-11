@@ -373,53 +373,54 @@ func (m *WSManager) handleFindBotMatch(conn *websocket.Conn, nickname string, di
 	}
 }
 
-// NEW: Ход бота
 func (m *WSManager) makeBotMove(nickname string) {
 	game, ok := m.gameManager.GetGame(nickname)
 	if !ok || !game.IsBotGame || game.IsFinished {
 		return
 	}
 
-	// Получаем ход от AI
 	botService := services.NewBotService()
 	cell := botService.GetBotMove(game.Board, game.BotDifficulty, game.BotSymbol)
-
 	if cell == -1 {
 		return
 	}
 
-	// Выполняем ход
-	moveMsg, resultMsg, err := m.gameManager.HandleMove(nickname, cell)
+	// Определяем имя бота (тот игрок, чей символ == BotSymbol)
+	botName := game.PlayerX
+	if game.BotSymbol == "O" {
+		// если бот O, то бот находится в PlayerO
+		botName = game.PlayerO
+	}
+
+	// Выполняем ход как бот (передаём имя бота)
+	moveMsg, resultMsg, err := m.gameManager.HandleMove(botName, cell)
 	if err != nil {
 		logger.Warn("Bot move error:", err)
 		return
 	}
 
-	// Отправляем результат игроку
-	if c, ok := m.clients.Load(nickname); ok {
-		conn := c.(*websocket.Conn)
-		_ = conn.WriteJSON(moveMsg)
-
-		if resultMsg != nil {
-			_ = conn.WriteJSON(resultMsg)
+	// Отправляем ответ игроку (и потенциально всем участникам игры)
+	// Используем общую sendToGame, чтобы рассылка была единообразной.
+	m.sendToGame(botName, moveMsg)
+	if resultMsg != nil {
+		m.sendToGame(botName, resultMsg)
+		game.IsFinished = true
+	} else {
+		// проверяем ничью
+		boardFull := true
+		for _, cellVal := range game.Board {
+			if cellVal == "" {
+				boardFull = false
+				break
+			}
+		}
+		if boardFull {
+			drawMsg := map[string]interface{}{
+				"type":   "game_over",
+				"result": "draw",
+			}
+			m.sendToGame(botName, drawMsg)
 			game.IsFinished = true
-		} else {
-			// Проверяем ничью
-			boardFull := true
-			for _, cellVal := range game.Board {
-				if cellVal == "" {
-					boardFull = false
-					break
-				}
-			}
-			if boardFull {
-				drawMsg := map[string]interface{}{
-					"type":   "game_over",
-					"result": "draw",
-				}
-				_ = conn.WriteJSON(drawMsg)
-				game.IsFinished = true
-			}
 		}
 	}
 }

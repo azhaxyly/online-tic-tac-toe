@@ -233,17 +233,14 @@ func checkWin(board [9]string) (string, []int) {
 func (g *GameManager) CreateBotGame(player string, difficulty models.BotDifficulty) string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-
 	// Случайно определяем, кто ходит первым
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	playerSymbol := "X"
 	botSymbol := "O"
-
 	if r.Intn(2) == 1 {
 		playerSymbol = "O"
 		botSymbol = "X"
 	}
-
 	botName := fmt.Sprintf("Bot_%s", difficulty)
 
 	var playerX, playerO string
@@ -267,6 +264,7 @@ func (g *GameManager) CreateBotGame(player string, difficulty models.BotDifficul
 	}
 
 	g.games[player] = game
+	g.games[botName] = game
 
 	return playerSymbol
 }
