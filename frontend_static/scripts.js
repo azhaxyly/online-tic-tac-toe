@@ -316,6 +316,15 @@ function renderBoard() {
 
 async function startQuickGame() {
   gameMode = 'online';
+
+  board = Array(9).fill('');
+  const boardDiv = document.getElementById('game-board');
+  const cells = boardDiv.querySelectorAll('.cell');
+  cells.forEach(cell => {
+    cell.innerHTML = '';
+    cell.classList.remove('show', 'highlight', 'dim');
+  });
+
   document.querySelector('header').classList.add('hidden');
   userInfoDiv.classList.add('hidden');
   statsDiv.classList.add('hidden');
@@ -359,6 +368,16 @@ function hideBotMenu() {
 
 function startBotGame(difficulty) {
   gameMode = 'online';
+
+  // clear board
+  board = Array(9).fill('');
+  const boardDiv = document.getElementById('game-board');
+  const cells = boardDiv.querySelectorAll('.cell');
+  cells.forEach(cell => {
+    cell.innerHTML = '';
+    cell.classList.remove('show', 'highlight', 'dim');
+  });
+
   document.querySelector('header').classList.add('hidden');
   userInfoDiv.classList.add('hidden');
   statsDiv.classList.add('hidden');

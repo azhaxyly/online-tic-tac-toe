@@ -218,7 +218,7 @@ button:hover {
 
 .cell {
   position: relative;
-  background: #000000;
+  background: transparent !important;
   display: flex;
   align-items: center;
   justify-content: center;
