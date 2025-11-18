@@ -59,6 +59,10 @@
       <span class="btn-icon">🎮</span>
       <span class="btn-text">Local Game</span>
     </button>
+    <button id="leaderboard-btn" class="menu-btn leaderboard">
+      <span class="btn-icon">🏆</span>
+      <span class="btn-text">Leaderboard</span>
+    </button>
   </div>
 
   <div id="bot-menu" class="bot-menu hidden">
@@ -120,6 +124,29 @@
 
   <div id="game-status" class="game-status"></div>
   <div id="game-score" class="game-score"></div>
+  <div id="leaderboard-modal" class="modal hidden">
+    <div class="modal-content leaderboard-content">
+      <div class="leaderboard-header">
+        <h2>🏆 Top 10 Players</h2>
+        <button id="close-leaderboard" class="close-btn">×</button>
+      </div>
+      <div class="table-container">
+        <table id="leaderboard-table">
+          <thead>
+          <tr>
+            <th>#</th>
+            <th>Player</th>
+            <th>Wins</th>
+            <th>Winrate</th>
+          </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+        <p id="leaderboard-loading" class="loading-text">Loading...</p>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script src="scripts.js" defer></script>

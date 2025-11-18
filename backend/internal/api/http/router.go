@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(sessionService *services.SessionService) *gin.Engine {
+func NewRouter(sessionService *services.SessionService, leaderboardService *services.LeaderboardService) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultWriter = io.Discard
 
@@ -37,6 +37,7 @@ func NewRouter(sessionService *services.SessionService) *gin.Engine {
 	statsHandler := handlers.NewStatsHandler(sessionService.RDB)
 	sessionHandler := handlers.NewSessionHandler(sessionService, sessionService.RDB)
 	profileHandler := handlers.NewProfileHandler(sessionService.RDB)
+	leaderboardHandler := handlers.NewLeaderboardHandler(leaderboardService)
 
 	// Защищенный WebSocket
 	router.GET("/ws", authMiddleware, func(c *gin.Context) {
@@ -49,18 +50,14 @@ func NewRouter(sessionService *services.SessionService) *gin.Engine {
 
 	api := router.Group("/api")
 	{
-		// ПУБЛИЧНЫЕ маршруты для аутентификации
 		api.POST("/register", sessionHandler.Register)
 		api.POST("/login", sessionHandler.Login)
 		api.POST("/logout", sessionHandler.Logout)
 
-		// Общая статистика (оставим публичной)
 		api.GET("/stats", statsHandler.GetStats)
+		api.GET("/leaderboard", leaderboardHandler.GetLeaderboard)
 
-		// ЗАЩИЩЕННЫЕ маршруты
-		// Проверка текущей сессии
 		api.GET("/nickname", authMiddleware, sessionHandler.GetNickname)
-		// Статистика профиля
 		api.GET("/profile-stats", authMiddleware, profileHandler.GetProfileStats)
 	}
 

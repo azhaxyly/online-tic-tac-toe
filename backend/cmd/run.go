@@ -36,7 +36,9 @@ func Run() {
 	sessionStore := store.NewUserStore(db)
 	sessionService := services.NewSessionService(rdb, sessionStore)
 
-	router := http.NewRouter(sessionService)
+	leaderboardService := services.NewLeaderboardService(rdb, sessionStore)
+
+	router := http.NewRouter(sessionService, leaderboardService)
 
 	port := os.Getenv("PORT")
 

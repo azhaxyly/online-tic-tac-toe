@@ -68,6 +68,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('play-again-btn').addEventListener('click', playAgain);
   document.getElementById('back-to-main-btn').addEventListener('click', backToMain);
   document.getElementById('cancel-search-btn').addEventListener('click', cancelSearch);
+  document.getElementById('leaderboard-btn').addEventListener('click', showLeaderboard);
+  document.getElementById('close-leaderboard').addEventListener('click', hideLeaderboard);
+  document.getElementById('leaderboard-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('leaderboard-modal')) {
+      hideLeaderboard();
+    }
+  });
 
   document.querySelectorAll('.difficulty-card').forEach(card => {
     card.addEventListener('click', () => {
@@ -902,4 +909,72 @@ function hideSideGifs() {
 
 function showSideGifs() {
   document.querySelectorAll('.side-gif').forEach(img => img.classList.remove('hidden'));
+}
+
+// --- Leaderboard Logic ---
+
+async function showLeaderboard() {
+  const modal = document.getElementById('leaderboard-modal');
+  const tableBody = document.querySelector('#leaderboard-table tbody');
+  const loadingText = document.getElementById('leaderboard-loading');
+
+  modal.classList.remove('hidden');
+  tableBody.innerHTML = ''; // Очистить старые данные
+  loadingText.classList.remove('hidden');
+
+  try {
+    const res = await fetch(`${API_URL}/api/leaderboard`, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to load');
+
+    const data = await res.json();
+    loadingText.classList.add('hidden');
+    renderLeaderboard(data);
+  } catch (err) {
+    console.error(err);
+    loadingText.textContent = 'Error loading leaderboard';
+  }
+}
+
+function hideLeaderboard() {
+  document.getElementById('leaderboard-modal').classList.add('hidden');
+}
+
+function renderLeaderboard(users) {
+  const tableBody = document.querySelector('#leaderboard-table tbody');
+
+  if (!users || users.length === 0) {
+    tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #666">No records yet</td></tr>';
+    return;
+  }
+
+  users.forEach((user, index) => {
+    const tr = document.createElement('tr');
+
+    const rank = index + 1;
+    let rankClass = '';
+    if (rank === 1) rankClass = 'rank-1';
+    if (rank === 2) rankClass = 'rank-2';
+    if (rank === 3) rankClass = 'rank-3';
+
+    const totalGames = user.wins + user.losses + user.draws;
+    const winrate = totalGames > 0 ? Math.round((user.wins / totalGames) * 100) : 0;
+
+    tr.innerHTML = `
+      <td class="${rankClass}">${rank}</td>
+      <td class="${rankClass}">${escapeHtml(user.nickname)}</td>
+      <td>${user.wins}</td>
+      <td class="winrate-cell">${winrate}%</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+
+function escapeHtml(text) {
+  if (!text) return text;
+  return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
 }
