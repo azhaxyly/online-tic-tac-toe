@@ -25,6 +25,7 @@ type WSManager struct {
 
 func NewManager(rdb *redis.Client) *WSManager {
 	gameManager := services.NewGameManager()
+	gameManager.StartCleaner(rdb)
 	manager := &WSManager{
 		redis:       rdb,
 		gameManager: gameManager,

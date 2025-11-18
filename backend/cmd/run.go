@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"tictactoe/config"
 	"tictactoe/internal/api/http"
@@ -32,6 +33,7 @@ func Run() {
 			logger.Error("failed to close Redis:", err)
 		}
 	}()
+	rdb.Set(context.Background(), "active_games", 0, 0)
 
 	sessionStore := store.NewUserStore(db)
 	sessionService := services.NewSessionService(rdb, sessionStore)
