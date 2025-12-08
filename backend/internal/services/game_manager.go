@@ -92,6 +92,7 @@ func (g *GameManager) HandleMove(nickname string, cell int) (map[string]interfac
 	if winner != "" {
 		game.IsFinished = true
 		game.Winner = winner
+		game.LastActivity = time.Now() // Update for rematch window
 
 		result := map[string]interface{}{
 			"type":           "game_over",
@@ -164,6 +165,7 @@ func (g *GameManager) RecordGameResult(rdb *redis.Client, nickname string) {
 	}
 
 	game.StatsRecorded = true
+	game.LastActivity = time.Now() // Update for rematch window
 }
 
 func (g *GameManager) updateElo(playerA, playerB string, scoreA float64) {
@@ -365,6 +367,15 @@ func (g *GameManager) cleanupAndSync(rdb *redis.Client) {
 	keysToDelete := []string{}
 
 	for nickname, game := range g.games {
+		// Don't cleanup games with active rematch timer or recently finished (within 20 seconds)
+		if game.RematchTimer != nil {
+			uniqueGames[game] = true
+			continue
+		}
+		if game.IsFinished && time.Since(game.LastActivity) < 20*time.Second {
+			uniqueGames[game] = true
+			continue
+		}
 		if game.IsFinished || time.Since(game.LastActivity) > 2*time.Minute {
 			keysToDelete = append(keysToDelete, nickname)
 		} else {

@@ -40,7 +40,7 @@ function hideProfileModal() {
 }
 
 async function showOpponentProfileModal() {
-    if (!opponentNickname) return;
+    if (!opponentNickname || opponentNickname.startsWith('Bot_')) return;
 
     const modal = document.getElementById('opponent-profile-modal');
     modal.classList.remove('hidden');
@@ -65,8 +65,15 @@ function hideOpponentProfileModal() {
     document.getElementById('opponent-profile-modal').classList.add('hidden');
 }
 
-function showPlayerPanels() {
-    document.getElementById('opponent-panel').classList.remove('hidden');
+function showPlayerPanels(isBot = false) {
+    const oppPanel = document.getElementById('opponent-panel');
+    if (isBot) {
+        // For bot games, style the opponent panel differently
+        oppPanel.classList.remove('hidden');
+        oppPanel.classList.add('bot-opponent');
+    } else {
+        oppPanel.classList.remove('hidden', 'bot-opponent');
+    }
     document.getElementById('my-panel').classList.remove('hidden');
 }
 
@@ -84,15 +91,20 @@ async function updatePlayerPanels() {
     }
 
     // Update opponent panel
+    const oppPanel = document.getElementById('opponent-panel');
     if (opponentNickname && !opponentNickname.startsWith('Bot_')) {
+        oppPanel.classList.remove('bot-opponent');
         const oppData = await fetchUserProfile(opponentNickname);
         if (oppData) {
             document.getElementById('opponent-name').textContent = opponentNickname;
             document.getElementById('opponent-elo').textContent = `ELO: ${oppData.elo_rating || 1000}`;
         }
     } else if (opponentNickname) {
-        document.getElementById('opponent-name').textContent = opponentNickname;
-        document.getElementById('opponent-elo').textContent = 'Bot';
+        // Bot opponent - show special styling
+        oppPanel.classList.add('bot-opponent');
+        const difficulty = opponentNickname.replace('Bot_', '');
+        document.getElementById('opponent-name').textContent = `🤖 ${difficulty}`;
+        document.getElementById('opponent-elo').textContent = 'AI Bot';
     }
 }
 

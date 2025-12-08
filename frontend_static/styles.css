@@ -1135,3 +1135,20 @@ button {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Bot Opponent Panel Styling */
+.player-panel.bot-opponent {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-color: rgba(168, 85, 247, 0.4);
+  cursor: default;
+}
+
+.player-panel.bot-opponent:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.player-panel.bot-opponent .player-avatar {
+  filter: hue-rotate(270deg);
+}
