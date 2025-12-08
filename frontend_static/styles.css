@@ -1249,7 +1249,7 @@ button {
   gap: 8px;
 }
 
-.ad-section {
+.reward-section {
   margin-bottom: 30px;
   text-align: center;
   padding: 20px;
@@ -1257,7 +1257,7 @@ button {
   border-radius: 12px;
 }
 
-.ad-btn {
+.reward-btn {
   background: linear-gradient(45deg, #ff6b6b, #ff8e53);
   color: white;
   border: none;
@@ -1271,11 +1271,11 @@ button {
   gap: 8px;
 }
 
-.ad-btn:hover {
+.reward-btn:hover {
   transform: scale(1.05);
 }
 
-.ad-btn:disabled {
+.reward-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
