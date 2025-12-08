@@ -45,3 +45,16 @@ func (s *UserStore) GetUserByNickname(nickname string) (*models.User, string, er
 
 	return user, passwordHash, nil
 }
+
+func (s *UserStore) GetUserProfile(nickname string) (*models.User, error) {
+	user := &models.User{}
+	err := s.DB.QueryRow(`
+		SELECT id, nickname, wins, losses, draws, elo_rating 
+		FROM users WHERE nickname = $1
+	`, nickname).Scan(&user.ID, &user.Nickname, &user.Wins, &user.Losses, &user.Draws, &user.EloRating)
+
+	if err != nil {
+		return nil, fmt.Errorf("get user profile: %w", err)
+	}
+	return user, nil
+}

@@ -36,7 +36,7 @@ func NewRouter(sessionService *services.SessionService, leaderboardService *serv
 	manager := ws.NewManager(sessionService.RDB, sessionService.Store)
 	statsHandler := handlers.NewStatsHandler(sessionService.RDB)
 	sessionHandler := handlers.NewSessionHandler(sessionService, sessionService.RDB)
-	profileHandler := handlers.NewProfileHandler(sessionService.RDB)
+	profileHandler := handlers.NewProfileHandler(sessionService.Store)
 	leaderboardHandler := handlers.NewLeaderboardHandler(leaderboardService)
 
 	// Защищенный WebSocket
@@ -59,6 +59,7 @@ func NewRouter(sessionService *services.SessionService, leaderboardService *serv
 
 		api.GET("/nickname", authMiddleware, sessionHandler.GetNickname)
 		api.GET("/profile-stats", authMiddleware, profileHandler.GetProfileStats)
+		api.GET("/profile/:nickname", profileHandler.GetUserProfileByNickname)
 	}
 
 	return router

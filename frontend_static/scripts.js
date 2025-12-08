@@ -19,6 +19,8 @@ const MOVE_TIMEOUT = 15;
 const REMATCH_DURATION = 15;
 
 let statsInterval = null;
+let opponentNickname = '';
+let myNickname = '';
 
 // DOM элементы
 let authContainer, loginForm, registerForm, showRegisterLink, showLoginLink, authErrorLogin, authErrorRegister;
@@ -96,6 +98,7 @@ async function checkLoginStatus() {
     }
     const data = await res.json();
     showAuthenticatedUI(data.nickname);
+    myNickname = data.nickname;
 
     // Восстановление прерванной онлайн-игры
     const saved = JSON.parse(localStorage.getItem('savedGame'));
@@ -135,6 +138,7 @@ async function handleLogin(e) {
 
     const data = await res.json();
     showAuthenticatedUI(data.nickname);
+    myNickname = data.nickname;
   } catch (err) {
     setAuthError(err.message, 'login');
   }
@@ -529,6 +533,8 @@ function backToMain() {
 
   showSideGifs();
 
+  hidePlayerPanels();
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.close();
   }
@@ -730,6 +736,7 @@ function setupWebSocketHandlers() {
 
       case 'match_found': {
         mySymbol = msg.symbol;
+        opponentNickname = msg.opponent || '';
         opponentSymbol = mySymbol === 'X' ? 'O' : 'X';
         currentTurn = 'X';
         document.getElementById('cancel-search-btn').classList.add('hidden');
@@ -739,6 +746,8 @@ function setupWebSocketHandlers() {
           document.getElementById('game-board').classList.remove('hidden');
           board = Array(9).fill('');
           renderBoard();
+          showPlayerPanels();
+          updatePlayerPanels();
           updateStatus(`Matched! You are '${mySymbol}'`);
           localStorage.setItem('savedGame', JSON.stringify({
             gameMode: 'online',

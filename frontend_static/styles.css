@@ -988,3 +988,150 @@ button {
   font-size: 0.9rem;
   color: #888;
 }
+/* Profile Modal Styles */
+.profile-content {
+  min-width: 350px;
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #333;
+}
+
+.profile-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.profile-body {
+  text-align: center;
+}
+
+.profile-nickname {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 25px;
+  color: #1e90ff;
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 15px 10px;
+  border-radius: 10px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 5px;
+  text-transform: uppercase;
+}
+
+.profile-winrate {
+  font-size: 1.1rem;
+  color: #22c55e;
+  font-weight: 500;
+}
+
+/* Player Panel Styles */
+.player-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  padding: 20px;
+  text-align: center;
+  min-width: 120px;
+  transition: all 0.3s ease;
+}
+
+.player-panel:hover {
+  transform: translateY(-5px);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.player-panel.left {
+  cursor: pointer;
+}
+
+.player-panel.left:hover {
+  border-color: #ff1744;
+  box-shadow: 0 10px 30px rgba(255, 23, 68, 0.3);
+}
+
+.player-panel.right {
+  border-color: rgba(30, 144, 255, 0.3);
+}
+
+.player-avatar {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.player-name {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 5px;
+  word-break: break-word;
+}
+
+.player-elo {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+/* Menu Profile Button */
+.menu-btn.profile:hover {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+}
+
+/* Leaderboard Button */
+.menu-btn.leaderboard:hover {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  box-shadow: 0 10px 30px rgba(251, 191, 36, 0.3);
+}
+
+/* Mobile Responsive for Player Panels */
+@media (max-width: 600px) {
+  .player-panel {
+    min-width: 80px;
+    padding: 10px;
+  }
+
+  .player-avatar {
+    font-size: 1.5rem;
+  }
+
+  .player-name {
+    font-size: 0.85rem;
+  }
+
+  .player-elo {
+    font-size: 0.75rem;
+  }
+
+  .profile-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

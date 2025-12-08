@@ -63,6 +63,10 @@
         <span class="btn-icon">🏆</span>
         <span class="btn-text">Leaderboard</span>
       </button>
+      <button id="profile-btn" class="menu-btn profile">
+        <span class="btn-icon">👤</span>
+        <span class="btn-text">Profile</span>
+      </button>
     </div>
 
     <div id="bot-menu" class="bot-menu hidden">
@@ -99,7 +103,17 @@
     </div>
 
     <div class="game-area">
+      <div id="opponent-panel" class="player-panel left hidden">
+        <div class="player-avatar">👤</div>
+        <div class="player-name" id="opponent-name">Opponent</div>
+        <div class="player-elo" id="opponent-elo">ELO: 1000</div>
+      </div>
       <div id="game-board" class="board hidden"></div>
+      <div id="my-panel" class="player-panel right hidden">
+        <div class="player-avatar">👤</div>
+        <div class="player-name" id="my-name">You</div>
+        <div class="player-elo" id="my-elo">ELO: 1000</div>
+      </div>
 
       <div id="restart-menu" class="restart-menu hidden">
         <button id="play-again-btn">Play Again</button>
@@ -148,9 +162,74 @@
         </div>
       </div>
     </div>
+
+    <!-- My Profile Modal -->
+    <div id="profile-modal" class="modal hidden">
+      <div class="modal-content profile-content">
+        <div class="profile-header">
+          <h2>👤 My Profile</h2>
+          <button id="close-profile" class="close-btn">×</button>
+        </div>
+        <div class="profile-body">
+          <div class="profile-nickname" id="profile-nickname">Loading...</div>
+          <div class="profile-stats-grid">
+            <div class="stat-item">
+              <div class="stat-value" id="profile-elo">1000</div>
+              <div class="stat-label">ELO</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="profile-wins">0</div>
+              <div class="stat-label">Wins</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="profile-losses">0</div>
+              <div class="stat-label">Losses</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="profile-draws">0</div>
+              <div class="stat-label">Draws</div>
+            </div>
+          </div>
+          <div class="profile-winrate" id="profile-winrate">Winrate: 0%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Opponent Profile Modal -->
+    <div id="opponent-profile-modal" class="modal hidden">
+      <div class="modal-content profile-content">
+        <div class="profile-header">
+          <h2>👤 Player Profile</h2>
+          <button id="close-opponent-profile" class="close-btn">×</button>
+        </div>
+        <div class="profile-body">
+          <div class="profile-nickname" id="opp-profile-nickname">Loading...</div>
+          <div class="profile-stats-grid">
+            <div class="stat-item">
+              <div class="stat-value" id="opp-profile-elo">1000</div>
+              <div class="stat-label">ELO</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="opp-profile-wins">0</div>
+              <div class="stat-label">Wins</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="opp-profile-losses">0</div>
+              <div class="stat-label">Losses</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="opp-profile-draws">0</div>
+              <div class="stat-label">Draws</div>
+            </div>
+          </div>
+          <div class="profile-winrate" id="opp-profile-winrate">Winrate: 0%</div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script src="scripts.js" defer></script>
+  <script src="profile.js" defer></script>
 </body>
 
 </html>

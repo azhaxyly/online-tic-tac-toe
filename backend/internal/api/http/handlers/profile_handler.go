@@ -1,49 +1,66 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 
+	"tictactoe/internal/store"
+
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 )
 
 type ProfileHandler struct {
-	RDB *redis.Client
+	UserStore *store.UserStore
 }
 
-func NewProfileHandler(rdb *redis.Client) *ProfileHandler {
+func NewProfileHandler(userStore *store.UserStore) *ProfileHandler {
 	return &ProfileHandler{
-		RDB: rdb,
+		UserStore: userStore,
 	}
 }
 
+// GetProfileStats returns the authenticated user's profile
 func (h *ProfileHandler) GetProfileStats(c *gin.Context) {
-	// 1. Получаем nickname из контекста, который был установлен
-	//    в AuthMiddleware.
 	nicknameVal, exists := c.Get("nickname")
 	if !exists {
-		// Эта проверка - на всякий случай. Если middleware настроен правильно,
-		// "nickname" должен всегда существовать.
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
 	nickname := nicknameVal.(string)
-	ctx := context.Background()
+	user, err := h.UserStore.GetUserProfile(nickname)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
 
-	// 2. Получаем статистику из Redis по ключам
-	//    Мы используем .Int() и игнорируем ошибку ( _ ).
-	//    Если ключ (например, "wins:nickname") не существует (redis.Nil),
-	//    .Int() вернет 0, что нам и нужно.
-	wins, _ := h.RDB.Get(ctx, "wins:"+nickname).Int()
-	losses, _ := h.RDB.Get(ctx, "losses:"+nickname).Int()
-	draws, _ := h.RDB.Get(ctx, "draws:"+nickname).Int()
-
-	// 3. Отправляем JSON-ответ
 	c.JSON(http.StatusOK, gin.H{
-		"wins":   wins,
-		"losses": losses,
-		"draws":  draws,
+		"nickname":   user.Nickname,
+		"wins":       user.Wins,
+		"losses":     user.Losses,
+		"draws":      user.Draws,
+		"elo_rating": user.EloRating,
+	})
+}
+
+// GetUserProfileByNickname returns any user's public profile by nickname
+func (h *ProfileHandler) GetUserProfileByNickname(c *gin.Context) {
+	nickname := c.Param("nickname")
+	if nickname == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "nickname required"})
+		return
+	}
+
+	user, err := h.UserStore.GetUserProfile(nickname)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"nickname":   user.Nickname,
+		"wins":       user.Wins,
+		"losses":     user.Losses,
+		"draws":      user.Draws,
+		"elo_rating": user.EloRating,
 	})
 }
