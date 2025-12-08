@@ -1031,9 +1031,6 @@ async function loadShop() {
     balanceSpan.textContent = data.coins;
     activeSkin = data.active_skin; // Update global active skin
     renderShopItems(data.catalog, data.inventory, data.active_skin);
-
-    // Update board immediately if skin changed
-    renderBoard();
   } catch (err) {
     console.error(err);
     catalogDiv.innerHTML = '<p class="error-text">Error loading shop</p>';
@@ -1080,7 +1077,7 @@ function renderShopItems(catalog, inventory, currentSkin) {
         <span>X</span>
       </div>
       <span class="item-name">${item.name}</span>
-      ${!isOwned ? `<span class="item-cost">🪙 ${item.cost}</span>` : ''}
+      ${!isOwned ? `<span class="item-cost">${item.cost} coins</span>` : ''}
       ${btnHtml}
     `;
     catalogDiv.appendChild(itemDiv);
