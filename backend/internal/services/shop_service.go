@@ -32,13 +32,18 @@ func (s *ShopService) GetCatalog() []ShopItem {
 	return Catalog
 }
 
-func (s *ShopService) GetShopInfo(userID int) (map[string]interface{}, error) {
-	coins, activeSkin, err := s.Store.GetUserShopData(userID)
+func (s *ShopService) GetShopInfo(nickname string) (map[string]interface{}, error) {
+	user, _, err := s.Store.GetUserByNickname(nickname)
 	if err != nil {
 		return nil, err
 	}
 
-	inventory, err := s.Store.GetInventory(userID)
+	coins, activeSkin, err := s.Store.GetUserShopData(user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	inventory, err := s.Store.GetInventory(user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +56,12 @@ func (s *ShopService) GetShopInfo(userID int) (map[string]interface{}, error) {
 	}, nil
 }
 
-func (s *ShopService) BuyItem(userID int, itemID string) error {
+func (s *ShopService) BuyItem(nickname string, itemID string) error {
+	user, _, err := s.Store.GetUserByNickname(nickname)
+	if err != nil {
+		return err
+	}
+
 	// Find item in catalog
 	var item *ShopItem
 	for _, i := range Catalog {
@@ -64,16 +74,26 @@ func (s *ShopService) BuyItem(userID int, itemID string) error {
 		return fmt.Errorf("item not found")
 	}
 
-	return s.Store.PurchaseItem(userID, itemID, item.Cost)
+	return s.Store.PurchaseItem(user.ID, itemID, item.Cost)
 }
 
-func (s *ShopService) WatchAd(userID int) error {
+func (s *ShopService) WatchAd(nickname string) error {
+	user, _, err := s.Store.GetUserByNickname(nickname)
+	if err != nil {
+		return err
+	}
+
 	// Mock delay
 	time.Sleep(5 * time.Second)
-	return s.Store.AddCoins(userID, 50)
+	return s.Store.AddCoins(user.ID, 50)
 }
 
-func (s *ShopService) EquipItem(userID int, itemID string) error {
+func (s *ShopService) EquipItem(nickname string, itemID string) error {
+	user, _, err := s.Store.GetUserByNickname(nickname)
+	if err != nil {
+		return err
+	}
+
 	// Verify item exists in catalog (or is default)
 	if itemID != "default" {
 		found := false
@@ -87,5 +107,5 @@ func (s *ShopService) EquipItem(userID int, itemID string) error {
 			return fmt.Errorf("invalid item")
 		}
 	}
-	return s.Store.EquipSkin(userID, itemID)
+	return s.Store.EquipSkin(user.ID, itemID)
 }

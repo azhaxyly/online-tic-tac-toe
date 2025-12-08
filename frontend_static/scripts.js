@@ -238,8 +238,6 @@ function showAuthenticatedUI(nickname) {
   if (statsInterval) clearInterval(statsInterval);
   loadStats();
   statsInterval = setInterval(loadStats, 60000);
-
-  renderBoard();
 }
 
 function showLoggedOutUI() {

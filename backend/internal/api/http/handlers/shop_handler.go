@@ -16,13 +16,13 @@ func NewShopHandler(service *services.ShopService) *ShopHandler {
 }
 
 func (h *ShopHandler) GetShopInfo(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	nickname, exists := c.Get("nickname")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	info, err := h.Service.GetShopInfo(userID.(int))
+	info, err := h.Service.GetShopInfo(nickname.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -32,7 +32,7 @@ func (h *ShopHandler) GetShopInfo(c *gin.Context) {
 }
 
 func (h *ShopHandler) BuyItem(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	nickname, exists := c.Get("nickname")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -46,7 +46,7 @@ func (h *ShopHandler) BuyItem(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.BuyItem(userID.(int), req.ItemID); err != nil {
+	if err := h.Service.BuyItem(nickname.(string), req.ItemID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -55,13 +55,13 @@ func (h *ShopHandler) BuyItem(c *gin.Context) {
 }
 
 func (h *ShopHandler) WatchAd(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	nickname, exists := c.Get("nickname")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	if err := h.Service.WatchAd(userID.(int)); err != nil {
+	if err := h.Service.WatchAd(nickname.(string)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -70,7 +70,7 @@ func (h *ShopHandler) WatchAd(c *gin.Context) {
 }
 
 func (h *ShopHandler) EquipItem(c *gin.Context) {
-	userID, exists := c.Get("userID")
+	nickname, exists := c.Get("nickname")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -84,7 +84,7 @@ func (h *ShopHandler) EquipItem(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.EquipItem(userID.(int), req.ItemID); err != nil {
+	if err := h.Service.EquipItem(nickname.(string), req.ItemID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
