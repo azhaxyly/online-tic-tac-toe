@@ -3,24 +3,28 @@ package services
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
 
 	"tictactoe/internal/logger"
 	"tictactoe/internal/models"
+	"tictactoe/internal/store"
 
 	"github.com/redis/go-redis/v9"
 )
 
 type GameManager struct {
-	mu    sync.RWMutex
-	games map[string]*models.Game
+	mu        sync.RWMutex
+	games     map[string]*models.Game
+	userStore *store.UserStore
 }
 
-func NewGameManager() *GameManager {
+func NewGameManager(userStore *store.UserStore) *GameManager {
 	return &GameManager{
-		games: make(map[string]*models.Game),
+		games:     make(map[string]*models.Game),
+		userStore: userStore,
 	}
 }
 
@@ -121,12 +125,15 @@ func (g *GameManager) FinishGame(rdb *redis.Client, nickname string) {
 	case "X":
 		rdb.Incr(ctx, "wins:"+game.PlayerX)
 		rdb.Incr(ctx, "losses:"+game.PlayerO)
+		g.updateElo(game.PlayerX, game.PlayerO, 1.0)
 	case "O":
 		rdb.Incr(ctx, "wins:"+game.PlayerO)
 		rdb.Incr(ctx, "losses:"+game.PlayerX)
+		g.updateElo(game.PlayerO, game.PlayerX, 1.0)
 	case "draw":
 		rdb.Incr(ctx, "draws:"+game.PlayerX)
 		rdb.Incr(ctx, "draws:"+game.PlayerO)
+		g.updateElo(game.PlayerX, game.PlayerO, 0.5)
 	}
 
 	delete(g.games, game.PlayerX)
@@ -137,6 +144,41 @@ func (g *GameManager) FinishGame(rdb *redis.Client, nickname string) {
 		logger.Warn("failed to decrement active_games:", err)
 	} else if count < 0 {
 		_ = rdb.Set(ctx, "active_games", 0, 0).Err()
+	}
+}
+
+func (g *GameManager) updateElo(playerA, playerB string, scoreA float64) {
+	// Получаем текущие рейтинги
+	userA, _, errA := g.userStore.GetUserByNickname(playerA)
+	userB, _, errB := g.userStore.GetUserByNickname(playerB)
+
+	if errA != nil || errB != nil {
+		logger.Error("Failed to get users for ELO update:", errA, errB)
+		return
+	}
+
+	// Расчет изменения рейтинга
+	kFactor := 32
+	expectedA := 1.0 / (1.0 + math.Pow(10, float64(userB.EloRating-userA.EloRating)/400.0))
+	changeA := int(float64(kFactor) * (scoreA - expectedA))
+
+	// Обновляем статистику в БД
+	resultA := "draw"
+	resultB := "draw"
+	if scoreA == 1.0 {
+		resultA = "win"
+		resultB = "loss"
+	} else if scoreA == 0.0 {
+		resultA = "loss"
+		resultB = "win"
+	}
+
+	if err := g.userStore.UpdateUserStats(playerA, changeA, resultA); err != nil {
+		logger.Error("Failed to update stats for", playerA, ":", err)
+	}
+	// Для второго игрока изменение противоположное
+	if err := g.userStore.UpdateUserStats(playerB, -changeA, resultB); err != nil {
+		logger.Error("Failed to update stats for", playerB, ":", err)
 	}
 }
 

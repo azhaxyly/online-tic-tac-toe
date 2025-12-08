@@ -7,11 +7,13 @@ type User struct {
 	Wins         int    `json:"wins"`
 	Losses       int    `json:"losses"`
 	Draws        int    `json:"draws"`
+	EloRating    int    `json:"elo_rating"`
 }
 
 type LeaderboardEntry struct {
-	Nickname string `json:"nickname"`
-	Wins     int    `json:"wins"`
-	Losses   int    `json:"losses"`
-	Draws    int    `json:"draws"`
+	Nickname  string `json:"nickname"`
+	Wins      int    `json:"wins"`
+	Losses    int    `json:"losses"`
+	Draws     int    `json:"draws"`
+	EloRating int    `json:"elo_rating"`
 }

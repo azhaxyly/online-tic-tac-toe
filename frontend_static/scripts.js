@@ -943,7 +943,7 @@ function renderLeaderboard(users) {
   const tableBody = document.querySelector('#leaderboard-table tbody');
 
   if (!users || users.length === 0) {
-    tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #666">No records yet</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color: #666">No records yet</td></tr>';
     return;
   }
 
@@ -958,13 +958,14 @@ function renderLeaderboard(users) {
 
     const totalGames = user.wins + user.losses + user.draws;
     const winrate = totalGames > 0 ? Math.round((user.wins / totalGames) * 100) : 0;
-
+    const eloRating = user.elo_rating || 1000;
     tr.innerHTML = `
       <td class="${rankClass}">${rank}</td>
       <td class="${rankClass}">${escapeHtml(user.nickname)}</td>
-      <td>${user.wins}</td>
-      <td class="winrate-cell">${winrate}%</td>
-    `;
+      <td class="elo-cell">${eloRating}</td>
+  <td>${user.wins}</td>
+  <td class="winrate-cell">${winrate}%</td>
+`;
     tableBody.appendChild(tr);
   });
 }
@@ -972,9 +973,9 @@ function renderLeaderboard(users) {
 function escapeHtml(text) {
   if (!text) return text;
   return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }

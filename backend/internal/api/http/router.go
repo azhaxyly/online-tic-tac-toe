@@ -33,7 +33,7 @@ func NewRouter(sessionService *services.SessionService, leaderboardService *serv
 	// Создаем middleware
 	authMiddleware := AuthMiddleware(sessionService.RDB) // <-- НАШ MIDDLEWARE
 
-	manager := ws.NewManager(sessionService.RDB)
+	manager := ws.NewManager(sessionService.RDB, sessionService.Store)
 	statsHandler := handlers.NewStatsHandler(sessionService.RDB)
 	sessionHandler := handlers.NewSessionHandler(sessionService, sessionService.RDB)
 	profileHandler := handlers.NewProfileHandler(sessionService.RDB)

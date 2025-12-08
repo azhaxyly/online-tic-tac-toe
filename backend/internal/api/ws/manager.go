@@ -11,6 +11,7 @@ import (
 
 	"tictactoe/internal/logger"
 	"tictactoe/internal/services"
+	"tictactoe/internal/store"
 
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
@@ -23,8 +24,8 @@ type WSManager struct {
 	gameManager *services.GameManager
 }
 
-func NewManager(rdb *redis.Client) *WSManager {
-	gameManager := services.NewGameManager()
+func NewManager(rdb *redis.Client, userStore *store.UserStore) *WSManager {
+	gameManager := services.NewGameManager(userStore)
 	manager := &WSManager{
 		redis:       rdb,
 		gameManager: gameManager,
