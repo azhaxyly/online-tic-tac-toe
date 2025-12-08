@@ -1152,3 +1152,184 @@ button {
 .player-panel.bot-opponent .player-avatar {
   filter: hue-rotate(270deg);
 }
+
+/* Shop Modal Styles */
+.shop-content {
+  max-width: 600px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+}
+
+.shop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 15px;
+}
+
+.shop-balance {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #ffd700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-section {
+  margin-bottom: 30px;
+  text-align: center;
+  padding: 20px;
+  background: #252525;
+  border-radius: 12px;
+}
+
+.ad-btn {
+  background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-btn:hover {
+  transform: scale(1.05);
+}
+
+.ad-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.shop-catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px;
+}
+
+.shop-item {
+  background: #2a2a2a;
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+  border: 1px solid #444;
+  transition: transform 0.2s;
+}
+
+.shop-item:hover {
+  transform: translateY(-5px);
+  border-color: #666;
+}
+
+.item-preview {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: #333;
+}
+
+.item-name {
+  font-weight: bold;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.item-cost {
+  color: #ffd700;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.shop-action-btn {
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.shop-action-btn.buy {
+  background: #4caf50;
+  color: white;
+}
+
+.shop-action-btn.buy:hover {
+  background: #45a049;
+}
+
+.shop-action-btn.equip {
+  background: #2196f3;
+  color: white;
+}
+
+.shop-action-btn.equip:hover {
+  background: #1e88e5;
+}
+
+.shop-action-btn.equipped {
+  background: #666;
+  color: #ccc;
+  cursor: default;
+}
+
+/* Skin Themes */
+
+/* Neon Skin */
+.skin_neon .board {
+  border-color: #0ff;
+  box-shadow: 0 0 20px #0ff;
+}
+.skin_neon .cell {
+  border-color: #0ff;
+  color: #f0f;
+  text-shadow: 0 0 10px #f0f;
+}
+.skin_neon .cell:hover {
+  background: rgba(0, 255, 255, 0.1);
+}
+
+/* Retro Skin */
+.skin_retro .board {
+  border: 4px solid #33ff00;
+  background: #000;
+  font-family: 'Courier New', Courier, monospace;
+}
+.skin_retro .cell {
+  border-color: #33ff00;
+  color: #33ff00;
+}
+.skin_retro .cell:hover {
+  background: #003300;
+}
+
+/* Gold Skin */
+.skin_gold .board {
+  border-color: #ffd700;
+  background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+}
+.skin_gold .cell {
+  border-color: #b8860b;
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.05);
+}
+.skin_gold .cell:hover {
+  background: rgba(255, 215, 0, 0.15);
+}

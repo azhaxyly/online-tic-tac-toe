@@ -67,6 +67,10 @@
         <span class="btn-icon">👤</span>
         <span class="btn-text">Profile</span>
       </button>
+      <button id="shop-btn" class="menu-btn shop">
+        <span class="btn-icon">🛒</span>
+        <span class="btn-text">Shop</span>
+      </button>
     </div>
 
     <div id="bot-menu" class="bot-menu hidden">
@@ -223,6 +227,32 @@
             </div>
           </div>
           <div class="profile-winrate" id="opp-profile-winrate">Winrate: 0%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shop Modal -->
+    <div id="shop-modal" class="modal hidden">
+      <div class="modal-content shop-content">
+        <div class="shop-header">
+          <h2>🛒 Shop</h2>
+          <div class="shop-balance">
+            <span class="coin-icon">🪙</span>
+            <span id="shop-balance-amount">0</span>
+          </div>
+          <button id="close-shop" class="close-btn">×</button>
+        </div>
+        <div class="shop-body">
+          <div class="ad-section">
+            <button id="watch-ad-btn" class="ad-btn">
+              <span class="btn-icon">📺</span>
+              Watch Ad (+50 Coins)
+            </button>
+          </div>
+          <h3>Skins</h3>
+          <div id="shop-catalog" class="shop-catalog">
+            <!-- Items will be injected here -->
+          </div>
         </div>
       </div>
     </div>

@@ -21,6 +21,8 @@ const REMATCH_DURATION = 15;
 let statsInterval = null;
 let opponentNickname = '';
 let myNickname = '';
+let activeSkin = 'default';
+
 
 // DOM элементы
 let authContainer, loginForm, registerForm, showRegisterLink, showLoginLink, authErrorLogin, authErrorRegister;
@@ -77,6 +79,18 @@ document.addEventListener('DOMContentLoaded', () => {
       hideLeaderboard();
     }
   });
+
+  // Shop Listeners
+  document.getElementById('shop-btn').addEventListener('click', loadShop);
+  document.getElementById('close-shop').addEventListener('click', () => {
+    document.getElementById('shop-modal').classList.add('hidden');
+  });
+  document.getElementById('shop-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('shop-modal')) {
+      document.getElementById('shop-modal').classList.add('hidden');
+    }
+  });
+  document.getElementById('watch-ad-btn').addEventListener('click', watchAd);
 
   document.querySelectorAll('.difficulty-card').forEach(card => {
     card.addEventListener('click', () => {
@@ -272,6 +286,18 @@ async function loadStats() {
 
 function renderBoard() {
   const boardDiv = document.getElementById('game-board');
+
+  // Apply active skin
+  boardDiv.className = 'board'; // reset
+  if (activeSkin !== 'default') {
+    boardDiv.classList.add(activeSkin);
+    document.body.className = activeSkin; // Optional: apply to body for full theme
+  } else {
+    document.body.className = '';
+  }
+  if (document.getElementById('game-board').classList.contains('hidden')) {
+    boardDiv.classList.add('hidden');
+  }
 
   if (boardDiv.querySelectorAll('.cell').length === 0) {
     for (let idx = 0; idx < 9; idx++) {
@@ -988,3 +1014,158 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+// --- Shop Logic ---
+
+async function loadShop() {
+  const modal = document.getElementById('shop-modal');
+  const balanceSpan = document.getElementById('shop-balance-amount');
+  const catalogDiv = document.getElementById('shop-catalog');
+
+  modal.classList.remove('hidden');
+  catalogDiv.innerHTML = '<p class="loading-text">Loading shop...</p>';
+
+  try {
+    const res = await fetch(`${API_URL}/api/shop`, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to load shop');
+
+    const data = await res.json();
+    balanceSpan.textContent = data.coins;
+    activeSkin = data.active_skin; // Update global active skin
+    renderShopItems(data.catalog, data.inventory, data.active_skin);
+
+    // Update board immediately if skin changed
+    renderBoard();
+  } catch (err) {
+    console.error(err);
+    catalogDiv.innerHTML = '<p class="error-text">Error loading shop</p>';
+  }
+}
+
+function renderShopItems(catalog, inventory, currentSkin) {
+  const catalogDiv = document.getElementById('shop-catalog');
+  catalogDiv.innerHTML = '';
+
+  // Always add Default skin
+  const defaultItem = { id: 'default', name: 'Default', cost: 0, type: 'skin' };
+  // Prepend default to catalog for display purposes if not present
+  // (Assuming catalog from server doesn't include default, or we handle it manually)
+
+  // Render catalog items
+  // We'll treat "default" as a special case if we want it in the list, 
+  // but let's stick to the server catalog. 
+  // If server catalog doesn't have default, we can add it manually to the UI list.
+
+  const allItems = [
+    { id: 'default', name: 'Classic', cost: 0, description: 'Standard look' },
+    ...catalog
+  ];
+
+  allItems.forEach(item => {
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'shop-item';
+
+    const isOwned = item.id === 'default' || (inventory && inventory.includes(item.id));
+    const isEquipped = currentSkin === item.id;
+
+    let btnHtml = '';
+    if (isEquipped) {
+      btnHtml = `<button class="shop-action-btn equipped" disabled>Equipped</button>`;
+    } else if (isOwned) {
+      btnHtml = `<button class="shop-action-btn equip" onclick="equipItem('${item.id}')">Equip</button>`;
+    } else {
+      btnHtml = `<button class="shop-action-btn buy" onclick="buyItem('${item.id}')">Buy (${item.cost})</button>`;
+    }
+
+    itemDiv.innerHTML = `
+      <div class="item-preview ${item.id}">
+        <span>X</span>
+      </div>
+      <span class="item-name">${item.name}</span>
+      ${!isOwned ? `<span class="item-cost">🪙 ${item.cost}</span>` : ''}
+      ${btnHtml}
+    `;
+    catalogDiv.appendChild(itemDiv);
+  });
+}
+
+async function buyItem(itemId) {
+  if (!confirm('Buy this item?')) return;
+
+  try {
+    const res = await fetch(`${API_URL}/api/shop/buy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ item_id: itemId })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || 'Purchase failed');
+      return;
+    }
+
+    // Refresh shop
+    loadShop();
+  } catch (err) {
+    console.error(err);
+    alert('Purchase failed');
+  }
+}
+
+async function equipItem(itemId) {
+  try {
+    const res = await fetch(`${API_URL}/api/shop/equip`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ item_id: itemId })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || 'Equip failed');
+      return;
+    }
+
+    // Refresh shop and board
+    loadShop();
+  } catch (err) {
+    console.error(err);
+    alert('Equip failed');
+  }
+}
+
+async function watchAd() {
+  const btn = document.getElementById('watch-ad-btn');
+  const originalText = btn.innerHTML;
+
+  btn.disabled = true;
+  btn.innerHTML = 'Watching Ad... (5s)';
+
+  try {
+    const res = await fetch(`${API_URL}/api/shop/ad-reward`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+
+    if (!res.ok) throw new Error('Failed to get reward');
+
+    const data = await res.json();
+    // alert(`Reward received: +${data.amount} coins!`);
+
+    // Refresh shop balance
+    loadShop();
+  } catch (err) {
+    console.error(err);
+    alert('Failed to watch ad');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+// Expose functions to global scope for onclick handlers in HTML string
+window.buyItem = buyItem;
+window.equipItem = equipItem;

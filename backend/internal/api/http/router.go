@@ -38,6 +38,8 @@ func NewRouter(sessionService *services.SessionService, leaderboardService *serv
 	sessionHandler := handlers.NewSessionHandler(sessionService, sessionService.RDB)
 	profileHandler := handlers.NewProfileHandler(sessionService.Store)
 	leaderboardHandler := handlers.NewLeaderboardHandler(leaderboardService)
+	shopService := services.NewShopService(sessionService.Store)
+	shopHandler := handlers.NewShopHandler(shopService)
 
 	// Защищенный WebSocket
 	router.GET("/ws", authMiddleware, func(c *gin.Context) {
@@ -60,6 +62,15 @@ func NewRouter(sessionService *services.SessionService, leaderboardService *serv
 		api.GET("/nickname", authMiddleware, sessionHandler.GetNickname)
 		api.GET("/profile-stats", authMiddleware, profileHandler.GetProfileStats)
 		api.GET("/profile/:nickname", profileHandler.GetUserProfileByNickname)
+
+		shop := api.Group("/shop")
+		shop.Use(authMiddleware)
+		{
+			shop.GET("", shopHandler.GetShopInfo)
+			shop.POST("/buy", shopHandler.BuyItem)
+			shop.POST("/equip", shopHandler.EquipItem)
+			shop.POST("/ad-reward", shopHandler.WatchAd)
+		}
 	}
 
 	return router

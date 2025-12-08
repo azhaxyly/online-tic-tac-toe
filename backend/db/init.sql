@@ -8,5 +8,15 @@ CREATE TABLE IF NOT EXISTS users (
     wins INT NOT NULL DEFAULT 0,
     losses INT NOT NULL DEFAULT 0,
     draws INT NOT NULL DEFAULT 0,
-    elo_rating INT NOT NULL DEFAULT 1000
+    elo_rating INT NOT NULL DEFAULT 1000,
+    coins INT NOT NULL DEFAULT 0,
+    active_skin VARCHAR(50) NOT NULL DEFAULT 'default'
     );
+
+CREATE TABLE IF NOT EXISTS inventory (
+    user_id INT NOT NULL,
+    item_id VARCHAR(50) NOT NULL,
+    purchased_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (user_id, item_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
