@@ -41,11 +41,12 @@ func (g *GameManager) CreateGame(p1, p2, sym1, sym2 string) {
 	}
 
 	game := &models.Game{
-		PlayerX:    playerX,
-		PlayerO:    playerO,
-		Turn:       "X",
-		Board:      [9]string{},
-		IsFinished: false,
+		PlayerX:      playerX,
+		PlayerO:      playerO,
+		Turn:         "X",
+		Board:        [9]string{},
+		IsFinished:   false,
+		LastActivity: time.Now(),
 	}
 
 	g.games[playerX] = game
@@ -77,6 +78,7 @@ func (g *GameManager) HandleMove(nickname string, cell int) (map[string]interfac
 		return nil, nil, fmt.Errorf("invalid move")
 	}
 
+	game.LastActivity = time.Now()
 	game.Board[cell] = symbol
 	game.Turn = opposite(symbol)
 
@@ -275,7 +277,6 @@ func checkWin(board [9]string) (string, []int) {
 func (g *GameManager) CreateBotGame(player string, difficulty models.BotDifficulty) string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	// Случайно определяем, кто ходит первым
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	playerSymbol := "X"
 	botSymbol := "O"
@@ -303,6 +304,7 @@ func (g *GameManager) CreateBotGame(player string, difficulty models.BotDifficul
 		IsBotGame:     true,
 		BotDifficulty: difficulty,
 		BotSymbol:     botSymbol,
+		LastActivity:  time.Now(),
 	}
 
 	g.games[player] = game
@@ -320,10 +322,46 @@ func (g *GameManager) IsBotTurn(nickname string) bool {
 		return false
 	}
 
-	// Проверяем, чей сейчас ход
 	if game.Turn == game.BotSymbol {
 		return true
 	}
 
 	return false
+}
+
+func (g *GameManager) StartCleaner(rdb *redis.Client) {
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		for range ticker.C {
+			g.cleanupAndSync(rdb)
+		}
+	}()
+}
+
+func (g *GameManager) cleanupAndSync(rdb *redis.Client) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	ctx := context.Background()
+	uniqueGames := make(map[*models.Game]bool)
+	keysToDelete := []string{}
+
+	for nickname, game := range g.games {
+		if game.IsFinished || time.Since(game.LastActivity) > 2*time.Minute {
+			keysToDelete = append(keysToDelete, nickname)
+		} else {
+			uniqueGames[game] = true
+		}
+	}
+
+	for _, key := range keysToDelete {
+		delete(g.games, key)
+	}
+
+	realCount := len(uniqueGames)
+
+	err := rdb.Set(ctx, "active_games", realCount, 0).Err()
+	if err != nil {
+		logger.Error("Failed to sync active_games:", err)
+	}
 }

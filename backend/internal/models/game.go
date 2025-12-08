@@ -12,7 +12,8 @@ type Game struct {
 	PlayAgainX    bool
 	PlayAgainO    bool
 	RematchTimer  *time.Timer
-	IsBotGame     bool          // NEW: флаг игры с ботом
-	BotDifficulty BotDifficulty // NEW: сложность бота
-	BotSymbol     string        // NEW: символ бота (X или O)
+	IsBotGame     bool
+	BotDifficulty BotDifficulty
+	BotSymbol     string
+	LastActivity  time.Time
 }
