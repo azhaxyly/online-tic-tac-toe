@@ -247,7 +247,7 @@ func (m *WSManager) handleForfeit(nickname string) {
 			"result": winner,
 		})
 		game.IsFinished = true
-		//m.gameManager.FinishGame(m.redis, nickname)
+		m.gameManager.RecordGameResult(m.redis, nickname)
 	}
 }
 
@@ -273,6 +273,7 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 		if resultMsg != nil {
 			_ = conn.WriteJSON(resultMsg)
 			game.IsFinished = true
+			m.gameManager.RecordGameResult(m.redis, nickname)
 		} else {
 			// Проверяем ничью
 			boardFull := true
@@ -289,6 +290,7 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 				}
 				_ = conn.WriteJSON(drawMsg)
 				game.IsFinished = true
+				m.gameManager.RecordGameResult(m.redis, nickname)
 			} else {
 				go func() {
 					time.Sleep(500 * time.Millisecond)
@@ -302,6 +304,7 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 		if resultMsg != nil {
 			m.sendToGame(nickname, resultMsg)
 			game.IsFinished = true
+			m.gameManager.RecordGameResult(m.redis, nickname)
 		} else {
 			boardFull := true
 			for _, cellVal := range game.Board {
@@ -317,6 +320,7 @@ func (m *WSManager) handleMove(conn *websocket.Conn, nickname string, msg map[st
 				}
 				m.sendToGame(nickname, drawMsg)
 				game.IsFinished = true
+				m.gameManager.RecordGameResult(m.redis, nickname)
 			}
 		}
 	}
@@ -407,6 +411,7 @@ func (m *WSManager) makeBotMove(nickname string) {
 	if resultMsg != nil {
 		m.sendToGame(botName, resultMsg)
 		game.IsFinished = true
+		m.gameManager.RecordGameResult(m.redis, nickname)
 	} else {
 		// проверяем ничью
 		boardFull := true
@@ -423,6 +428,7 @@ func (m *WSManager) makeBotMove(nickname string) {
 			}
 			m.sendToGame(botName, drawMsg)
 			game.IsFinished = true
+			m.gameManager.RecordGameResult(m.redis, nickname)
 		}
 	}
 }

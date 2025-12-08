@@ -16,4 +16,5 @@ type Game struct {
 	BotDifficulty BotDifficulty
 	BotSymbol     string
 	LastActivity  time.Time
+	StatsRecorded bool
 }

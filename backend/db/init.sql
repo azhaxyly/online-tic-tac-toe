@@ -1,7 +1,5 @@
 -- db/init.sql
 CREATE TABLE IF NOT EXISTS users (
--- db/init.sql
-CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     nickname VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,

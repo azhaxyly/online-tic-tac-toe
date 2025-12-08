@@ -123,6 +123,31 @@ func (g *GameManager) FinishGame(rdb *redis.Client, nickname string) {
 
 	ctx := context.Background()
 
+	// Stats update moved to RecordGameResult
+
+
+	delete(g.games, game.PlayerX)
+	delete(g.games, game.PlayerO)
+
+	count, err := rdb.Decr(ctx, "active_games").Result()
+	if err != nil {
+		logger.Warn("failed to decrement active_games:", err)
+	} else if count < 0 {
+		_ = rdb.Set(ctx, "active_games", 0, 0).Err()
+	}
+}
+
+func (g *GameManager) RecordGameResult(rdb *redis.Client, nickname string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	game, ok := g.games[nickname]
+	if !ok || !game.IsFinished || game.StatsRecorded {
+		return
+	}
+
+	ctx := context.Background()
+
 	switch game.Winner {
 	case "X":
 		rdb.Incr(ctx, "wins:"+game.PlayerX)
@@ -138,15 +163,7 @@ func (g *GameManager) FinishGame(rdb *redis.Client, nickname string) {
 		g.updateElo(game.PlayerX, game.PlayerO, 0.5)
 	}
 
-	delete(g.games, game.PlayerX)
-	delete(g.games, game.PlayerO)
-
-	count, err := rdb.Decr(ctx, "active_games").Result()
-	if err != nil {
-		logger.Warn("failed to decrement active_games:", err)
-	} else if count < 0 {
-		_ = rdb.Set(ctx, "active_games", 0, 0).Err()
-	}
+	game.StatsRecorded = true
 }
 
 func (g *GameManager) updateElo(playerA, playerB string, scoreA float64) {
@@ -222,6 +239,7 @@ func (g *GameManager) HandlePlayAgain(nickname string) (map[string]interface{}, 
 	game.PlayAgainX = false
 	game.PlayAgainO = false
 	game.Winner = ""
+	game.StatsRecorded = false
 
 	if symbols[0] == "X" {
 		game.PlayerX = players[0]
